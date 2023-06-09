@@ -4,7 +4,7 @@ import scipy
 
 from functools import cache
 
-from definitions import SAMPLE_T, NUM_BLOCKS, NUM_TARGETS, NUM_SAMPLES, NUM_ELECTRODES, ELECTRODE_INDEX
+from ssvepcca.definitions import SAMPLE_T, NUM_BLOCKS, NUM_TARGETS, NUM_SAMPLES, NUM_ELECTRODES, ELECTRODE_INDEX
 
 
 def check_input_data(data):

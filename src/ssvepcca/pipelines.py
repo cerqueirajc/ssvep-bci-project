@@ -1,6 +1,6 @@
 import numpy as np
-from utils import check_input_data
-from definitions import NUM_BLOCKS, NUM_TARGETS
+from ssvepcca.utils import check_input_data
+from ssvepcca.definitions import NUM_BLOCKS, NUM_TARGETS
 
 
 def leave_one_out_predict(learner, data, target, electrode_index=None):

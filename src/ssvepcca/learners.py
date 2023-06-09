@@ -2,8 +2,8 @@ import scipy
 import numpy as np
 from sklearn.cross_decomposition import CCA
 
-from definitions import TARGET_FREQUENCY, NUM_TARGETS
-from utils import get_harmonic_columns, electrodes_name_to_index
+from ssvepcca.definitions import TARGET_FREQUENCY, NUM_TARGETS
+from ssvepcca.utils import get_harmonic_columns, electrodes_name_to_index
 
 
 class CCACorrelation(CCA):
