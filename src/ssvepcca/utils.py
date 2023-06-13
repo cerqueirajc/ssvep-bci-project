@@ -12,7 +12,7 @@ def check_input_data(data):
 
 
 def check_result_data(data):
-    assert data.shape == (NUM_BLOCKS, NUM_TARGETS)
+    assert data.shape == (NUM_BLOCKS, NUM_TARGETS), f"Input result data dimensions does not match: {data.shape}"
 
 
 def _get_time_column(start_time_index, stop_time_index):
@@ -40,7 +40,7 @@ def electrodes_name_to_index(electrodes):
      return [ELECTRODE_INDEX[electrode_name] for electrode_name in electrodes]
 
 
-def metric_accuracy(result):
+def eval_accuracy(result):
     check_result_data(result)
     
     count = 0
@@ -49,7 +49,7 @@ def metric_accuracy(result):
             if result[b, t] == t:
                 count += 1
     
-    return count, count/(NUM_BLOCKS * NUM_TARGETS)
+    return [count, count/(NUM_BLOCKS * NUM_TARGETS)]
 
 
 def load_mat_data_array(mat_path):
@@ -59,7 +59,7 @@ def load_mat_data_array(mat_path):
 
 def load_mat_to_pandas(mat_path):
 
-    mat = scipy.io.loadmat(mat_path)
+    mat = scipy.io.loadmat(mat_path)["data"]
 
     temp_list = []
 

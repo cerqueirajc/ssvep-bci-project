@@ -1,9 +1,13 @@
+from ssvepcca.utils import check_input_data, eval_accuracy, load_mat_data_array
+from ssvepcca.definitions import NUM_BLOCKS, NUM_TARGETS, NUM_SUBJECTS
+
+import os
 import numpy as np
-from ssvepcca.utils import check_input_data
-from ssvepcca.definitions import NUM_BLOCKS, NUM_TARGETS
+import toolz as fp
 
 
-def leave_one_out_predict(learner, data, target, electrode_index=None):
+@fp.curry
+def leave_one_out_predict(data, learner):
     """
     leave_one_out_predict
     ------------
@@ -12,26 +16,26 @@ def leave_one_out_predict(learner, data, target, electrode_index=None):
     """
 
     check_input_data(data)
-    
-    if electrode_index:
-        data = data[:, :, :, electrode_index]
 
     score_masks = np.identity(NUM_BLOCKS, dtype=bool)
     train_masks = ~score_masks
-    
-    output_predictions = np.empty([NUM_BLOCKS])
-    
+
+    output_predictions = np.empty([NUM_TARGETS, NUM_BLOCKS])
+
     for block in range(NUM_BLOCKS):
-        train_data = data[:, :, train_masks[block]]
-        score_data = data[:, :, score_masks[block]]
-        
-        learner.fit(train_data, target)
-        output_predictions[block] = learner.predict(score_data)
-    
+        for target in range(NUM_TARGETS):
+
+            score_data = data[score_masks[block], target, :, :]
+            train_data = data[train_masks[block], target, :, :]
+
+            learner.fit(train_data, target)
+            output_predictions[block, target] = learner.predict(score_data)
+
     return output_predictions
 
 
-def test_fit_predict(learner, data):
+@fp.curry
+def test_fit_predict(data, learner):
     """
     test_fit_predict
     ----------
@@ -41,11 +45,46 @@ def test_fit_predict(learner, data):
 
     check_input_data(data)
 
-    output_predictions = np.empty([NUM_BLOCKS, NUM_TARGETS])
+    predictions = np.empty([NUM_BLOCKS, NUM_TARGETS])
+    predict_proba_list = []
 
     for block in range(NUM_BLOCKS):
+        predict_proba_list.append([])
         for target in range(NUM_TARGETS):
+            
             score_data = data[block, target, :, :]
-            output_predictions[block, target] = learner.predict(score_data)
+            prediction, predict_proba = learner.predict(score_data)
+            
+            predictions[block, target] = prediction
+            predict_proba_list[block].append(predict_proba)
 
-    return output_predictions
+    return predictions, np.array(predict_proba_list), eval_accuracy(predictions) # preds, pred_proba, acc
+
+
+def eval_all_subjects_and_save_pipeline(learner_obj, fit_pipeline, dataset_root_path, output_folder):
+
+    print(f"Run pipeline to evaluate the performance of an algorithm for all subjects and save assets")
+
+    results = dict(
+        predictions = [],
+        accuracy = [],
+        predict_proba = []
+    )
+
+    for subject_num in range(1, NUM_SUBJECTS + 1):
+
+        print(f"Running evalulation for subject {subject_num}.")
+
+        dataset = load_mat_data_array(f"{dataset_root_path}/S{subject_num}.mat")
+
+        predictions, predict_proba, accuracy = fit_pipeline(dataset, learner_obj)
+
+        results["predictions"].append(predictions)
+        results["accuracy"].append(accuracy)
+        results["predict_proba"].append(predict_proba)
+
+    os.makedirs(output_folder, exist_ok=True)
+    for name, result_array in results.items():
+        np.save(output_folder + f"/{name}", np.array(result_array), allow_pickle=False)
+
+    return

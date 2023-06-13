@@ -82,5 +82,5 @@ class CCASingleComponent(CCABase):
         )
 
     def predict(self, eeg):
-        correlations = self.predict_proba(eeg)
-        return correlations.argmax()
+        probability = self.predict_proba(eeg)
+        return probability.argmax(), probability
