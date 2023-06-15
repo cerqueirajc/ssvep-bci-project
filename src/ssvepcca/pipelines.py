@@ -7,31 +7,37 @@ import toolz as fp
 
 
 @fp.curry
-def leave_one_out_predict(data, learner):
+def k_fold_predict(data, learner):
     """
     leave_one_out_predict
     ------------
     This function is a pipeline to be used with learners that needs training data. The proposed method is to fit
-    the model with k-1 examples and predict the example left out.
+    the model with k-1 folds and predict the fold that was left out. This function is hardcoded to use NUM_BLOCKS
+    as the number of folds (k=NUM_BLOCKS).
     """
 
     check_input_data(data)
 
-    score_masks = np.identity(NUM_BLOCKS, dtype=bool)
-    train_masks = ~score_masks
+    valid_masks = np.identity(NUM_BLOCKS, dtype=bool)
+    train_masks = ~valid_masks
 
-    output_predictions = np.empty([NUM_TARGETS, NUM_BLOCKS])
+    predictions = np.empty([NUM_BLOCKS, NUM_TARGETS])
+    predict_proba_list = []
 
     for block in range(NUM_BLOCKS):
+        
+        train_data = data[train_masks[block], :, :, :]
+        valid_data = data[valid_masks[block], :, :, :].squeeze()
+        
+        learner.fit(train_data)
+        
         for target in range(NUM_TARGETS):
+            prediction, predict_proba = learner.predict(valid_data[target, :, :])
 
-            score_data = data[score_masks[block], target, :, :]
-            train_data = data[train_masks[block], target, :, :]
+            predictions[block, target] = prediction
+            predict_proba_list.append(predict_proba)
 
-            learner.fit(train_data, target)
-            output_predictions[block, target] = learner.predict(score_data)
-
-    return output_predictions
+    return predictions, np.array(predict_proba_list), eval_accuracy(predictions)
 
 
 @fp.curry

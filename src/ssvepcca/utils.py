@@ -17,8 +17,8 @@ def check_result_data(data):
 
 def _get_time_column(start_time_index, stop_time_index):
     return np.arange(start_time_index, stop_time_index, 1).reshape(1, -1) * SAMPLE_T
-    
-    
+
+
 @cache
 def get_harmonic_columns(
     frequency,
@@ -34,7 +34,7 @@ def get_harmonic_columns(
         harmonics.append(np.cos(time_col * 2 * scipy.pi * (frequency * h)))
 
     return np.concatenate(harmonics).T
-    
+
 
 def electrodes_name_to_index(electrodes):
      return [ELECTRODE_INDEX[electrode_name] for electrode_name in electrodes]
@@ -42,13 +42,13 @@ def electrodes_name_to_index(electrodes):
 
 def eval_accuracy(result):
     check_result_data(result)
-    
+
     count = 0
     for b in range(NUM_BLOCKS):
         for t in range(NUM_TARGETS):
             if result[b, t] == t:
                 count += 1
-    
+
     return [count, count/(NUM_BLOCKS * NUM_TARGETS)]
 
 
