@@ -76,7 +76,7 @@ class CCABase:
         return eeg[..., start_time_index:stop_time_index, :]
 
 
-    def predict_proba(self, eeg):
+    def feature_extractor(self, eeg):
         self._check_predict_input(eeg)
 
         eeg = self._filter_eeg_electrodes(eeg, self.electrodes_index)
@@ -90,6 +90,15 @@ class CCABase:
             correlations[target, :] = cca_model.fit_correlation(eeg, harmonic)
 
         return correlations
+
+
+    def predict_proba(self, eeg):
+        raise NotImplementedError
+
+
+    def predict(self, eeg):
+        probability = self.predict_proba(eeg)
+        return probability.argmax(), probability
 
 
 class CCASingleComponent(CCABase):
@@ -109,17 +118,14 @@ class CCASingleComponent(CCABase):
             num_harmonics=num_harmonics,
         )
 
-
-    def predict(self, eeg):
-        probability = self.predict_proba(eeg)[:, 0]
-        return probability.argmax(), probability
+    def predict_proba(self, eeg):
+        return self.feature_extractor(eeg)[:, 0]
 
 
 class CCAMultiComponent(CCABase):
 
-    def predict(self, eeg):
-        probability = self.predict_proba(eeg)
-        return probability.mean(axis=1).argmax(), probability
+    def predict_proba(self, eeg):
+        return self.feature_extractor(eeg).mean(axis=1)
 
 
 class CCAFixedCoefficients(CCASingleComponent):
@@ -155,7 +161,7 @@ class CCAFixedCoefficients(CCASingleComponent):
         return self
 
 
-    def predict_proba(self, eeg):
+    def feature_extractor(self, eeg):
 
         self._check_predict_input(eeg)
         eeg = self._filter_eeg_electrodes(eeg, self.electrodes_index)
@@ -225,7 +231,7 @@ class FBCCA(CCABase):
         self.fb_weight_array = np.array([fb_weight(n) for n in range(1, self.fb_num_subband + 1)])
 
 
-    def predict_proba(self, eeg):
+    def feature_extractor(self, eeg):
 
         self._check_predict_input(eeg)
 
@@ -260,7 +266,7 @@ class FBCCA(CCABase):
 
         return correlations
 
-    def predict(self, eeg):
-        predict_proba = self.predict_proba(eeg)
-        target_proba = np.power(predict_proba, 2) @ self.fb_weight_array
-        return target_proba.argmax(), predict_proba
+
+    def predict_proba(self, eeg):
+        features = self.feature_extractor(eeg)
+        return np.power(features, 2) @ self.fb_weight_array
