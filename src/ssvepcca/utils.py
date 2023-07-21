@@ -54,7 +54,7 @@ def eval_accuracy(result):
 
 def load_mat_data_array(mat_path):
     mat = scipy.io.loadmat(mat_path)
-    return mat["data"].T
+    return mat["data"].astype(float).T
 
 
 def load_mat_to_pandas(mat_path):
@@ -76,3 +76,17 @@ def load_mat_to_pandas(mat_path):
             )
 
     return pd.concat(temp_list)
+
+
+def shift_first_dim(arr, num):
+    """
+    Shifts the values of a tensor of time series, assuming the first dimension is the time index.
+    """
+
+    arr=np.roll(arr, num, axis=0)
+    if num < 0:
+        arr[-num:, ...] = np.nan
+    elif num > 0:
+        arr[:num, ...] = np.nan
+    return arr
+
