@@ -7,7 +7,7 @@ import sys
     
 def main():
     
-    learner = learners.FBCCA(
+    learner = learners.FilterbankCCA(
         electrodes_name=parameters.electrode_list_fbcca,
         start_time_index=125,
         stop_time_index=875,

@@ -77,6 +77,10 @@ class CCABase:
         return eeg[..., start_time_index:stop_time_index, :]
 
 
+    def get_time_window_size(self):
+        return self.stop_time_index - self.start_time_index
+
+
     def feature_extractor(self, eeg):
         self._check_predict_input(eeg)
 
@@ -151,7 +155,7 @@ class CCAFixedCoefficients(CCASingleComponent):
             harmonic_concatenated = (
                 harmonic[np.newaxis, :, :] # create new dummy dimension that will be expanded
                 .repeat(num_blocks, axis=0) # repeate the harmonic matrix for each one of the blocks present in eeg, shape=(num_blocks,time,num_harmonics)
-                .reshape(-1, self.num_harmonics * 2) # concatenate harmonics from different blocks in a single lengthy one, shape=(num_blocks*time, num_harmonics)
+                .reshape(num_blocks * self.get_time_window_size(), self.num_harmonics * 2) # concatenate harmonics from different blocks in a single lengthy one, shape=(num_blocks*time, num_harmonics)
             )
 
             cca_model = CCACorrelation(n_components=self.num_components, max_iter=CCA_MAX_ITER, scale=False)
@@ -177,7 +181,7 @@ class CCAFixedCoefficients(CCASingleComponent):
         return correlations
 
 
-class FBCCA(CCABase):
+class FilterbankCCA(CCASingleComponent):
 
     CHEBY_ORDER = 6
     CHEBY_MAX_RIPPLE = 0.5
@@ -191,7 +195,7 @@ class FBCCA(CCABase):
         electrodes_name=None,
         start_time_index=0,
         stop_time_index=1500,
-        num_components=1,
+        # num_components=1,
         num_harmonics=3,
         fb_num_subband=3,
         fb_fundamental_freq=8,
@@ -199,7 +203,7 @@ class FBCCA(CCABase):
         fb_weight__a=1.25,
         fb_weight__b=0.25,
     ):
-        super().__init__(electrodes_name, start_time_index, stop_time_index, num_components, num_harmonics)
+        super().__init__(electrodes_name, start_time_index, stop_time_index, num_harmonics)
 
         self.fb_num_subband=fb_num_subband
         self.fb_fundamental_freq = fb_fundamental_freq
@@ -235,13 +239,13 @@ class FBCCA(CCABase):
     def apply_filter_bank(self, eeg):
         # expand axis to add filtered dimensions
         eeg_fb = (
-            eeg[np.newaxis, :, :]
-            .repeat(self.fb_num_subband, axis=0)
+            eeg[..., np.newaxis, :, :]
+            .repeat(self.fb_num_subband, axis=-3)
         )
         # filter
         for filter_idx, filter_params in enumerate(self.fb_filters):
            for feature_idx in range(eeg_fb.shape[-1]):
-                eeg_fb[filter_idx, :, feature_idx] = signal.filtfilt(
+                eeg_fb[..., filter_idx, :, feature_idx] = signal.filtfilt(
                     x=eeg_fb[filter_idx, :, feature_idx],
                     b=filter_params["b"],
                     a=filter_params["a"],
@@ -275,7 +279,7 @@ class FBCCA(CCABase):
         return np.power(features, 2) @ self.fb_weight_array
 
 
-class FBCCAFixedCoefficients(FBCCA):
+class FBCCAFixedCoefficients(FilterbankCCA):
 
     def fit(self, eeg_tensor):
 
@@ -338,7 +342,7 @@ class FBCCAFixedCoefficients(FBCCA):
         return correlations
 
 
-class AlternativeFBCCA(FBCCA):
+class AlternativeFBCCA(FilterbankCCA):
 
     def feature_extractor(self, eeg):
 
@@ -348,13 +352,13 @@ class AlternativeFBCCA(FBCCA):
 
         eeg_fb = self.apply_filter_bank(eeg)
         eeg_fb = np.transpose(eeg_fb, axes=(1,2,0)) # time, electrodes, fb_number
-        eeg_fb = eeg_fb.reshape(self.stop_time_index - self.start_time_index, -1) # use filterbank as new features
+        eeg_fb = eeg_fb.reshape(self.get_time_window_size(), -1) # use filterbank as new features
 
         correlations = np.empty([NUM_TARGETS])
 
         for target, freq in enumerate(TARGET_FREQUENCY):
             harmonic = self.harmonic_column(freq)
-            
+
             cca_model = CCACorrelation(n_components=self.num_components, max_iter=CCA_MAX_ITER, scale=False)
             correlations[target] = cca_model.fit_correlation(eeg_fb, harmonic)[0]
 
@@ -366,42 +370,55 @@ class AlternativeFBCCA(FBCCA):
 
 
 class CCASpatioTemporal(CCASingleComponent):
-    
+
     def __init__(
         self,
         electrodes_name=None,
         start_time_index=0,
         stop_time_index=1500,
         num_harmonics=3,
-        window_step=1,
+        window_gap=0,
         window_length=10
     ):
-        self.window_step = window_step
+        self.window_gap = window_gap
         self.window_length = window_length
 
-        assert self.window_step > 0
-        assert self.window_length > 0
+        assert self.window_gap >= 0
+        assert self.window_length >= 0
 
         super().__init__(electrodes_name, start_time_index, stop_time_index, num_harmonics)
 
-    def feature_extractor(self, eeg):
 
-        self._check_predict_input(eeg)
+    def apply_fir_bank(self, eeg):
+
+        eeg_with_lags =  (
+            eeg[..., np.newaxis]
+            .repeat(self.window_length + 1, axis=-1)
+        )
+
+        for length in range(1, self.window_length + 1): # skip zero, always keep t=0 as original value
+            lag = length + self.window_gap
+            eeg_with_lags[..., length] = shift_first_dim(eeg_with_lags[..., length], lag)
+
+        return eeg_with_lags
+
+
+    def preprocess_fir_eeg(self, eeg):
 
         eeg = self._filter_eeg_electrodes(eeg, self.electrodes_index)
         eeg = self._filter_eeg_time(eeg, None, self.stop_time_index)
 
-        eeg_with_lags =  (
-            eeg[np.newaxis, :, :]
-            .repeat(self.window_length, axis=0)
-        )
-
-        for length in range(self.window_length):
-            lag = length + self.window_step
-            eeg_with_lags[length, ...] = shift_first_dim(eeg_with_lags[length, ...], lag)
-
+        eeg_with_lags = self.apply_fir_bank(eeg)
+        eeg_with_lags = eeg_with_lags.reshape(eeg_with_lags.shape[:-2] + (-1,))
         eeg_with_lags = self._filter_eeg_time(eeg_with_lags, self.start_time_index, None)
-        eeg_with_lags = np.transpose(eeg_with_lags, (1,2,0)).reshape(self.stop_time_index - self.start_time_index, -1)
+
+        return eeg_with_lags
+
+
+    def feature_extractor(self, eeg):
+
+        self._check_predict_input(eeg)
+        eeg_with_lags = self.preprocess_fir_eeg(eeg)
 
         correlations = np.empty([NUM_TARGETS, self.num_components])
 
@@ -411,3 +428,180 @@ class CCASpatioTemporal(CCASingleComponent):
             correlations[target, :] = cca_model.fit_correlation(eeg_with_lags, harmonic)
 
         return correlations
+
+
+class CCASpatioTemporalFixed(CCASpatioTemporal):
+
+    def fit(self, eeg_tensor):
+
+        self._check_fit_input(eeg_tensor)
+        num_blocks = eeg_tensor.shape[0]
+
+        eeg_tensor_with_lags = np.stack(
+            [
+                self.preprocess_fir_eeg(eeg_tensor[block, target, ...])
+                for block in range(eeg_tensor.shape[0])
+                for target in range(eeg_tensor.shape[1])
+            ]
+        ).reshape(eeg_tensor.shape[0], eeg_tensor.shape[1], self.get_time_window_size(), -1)
+
+        self.cca_models = {}
+
+        for target, freq in enumerate(TARGET_FREQUENCY):
+
+            eeg_concatenated = eeg_tensor_with_lags[:, target, :, :].reshape(
+                eeg_tensor_with_lags.shape[0] * eeg_tensor_with_lags.shape[2], -1
+            )
+
+            harmonic = self.harmonic_column(freq)
+            harmonic_concatenated = (
+                harmonic[np.newaxis, :, :] # create new dummy dimension that will be expanded
+                .repeat(num_blocks, axis=0) # repeate the harmonic matrix for each one of the blocks present in eeg, shape=(num_blocks,time,num_harmonics)
+                .reshape(-1, self.num_harmonics * 2) # concatenate harmonics from different blocks in a single lengthy one, shape=(num_blocks*time, num_harmonics)
+            )
+
+            cca_model = CCACorrelation(n_components=self.num_components, max_iter=CCA_MAX_ITER, scale=False)
+            cca_model.fit(eeg_concatenated, harmonic_concatenated)
+
+            self.cca_models[target] = cca_model
+
+        return self
+
+    def feature_extractor(self, eeg):
+
+        self._check_predict_input(eeg)
+        eeg_with_lags = self.preprocess_fir_eeg(eeg)
+
+        correlations = np.empty([NUM_TARGETS, self.num_components])
+
+        for target, freq in enumerate(TARGET_FREQUENCY):
+            harmonic = self.harmonic_column(freq)
+            correlations[target, :] = self.cca_models[target].correlation(eeg_with_lags, harmonic)
+
+        return correlations
+
+
+class FBSpatioTemporalCCA(FilterbankCCA, CCASpatioTemporal):
+
+    def __init__(
+        self,
+        electrodes_name=None,
+        start_time_index=0,
+        stop_time_index=1500,
+        # num_components=1,
+        num_harmonics=3,
+        window_gap=0,
+        window_length=10,
+        fb_num_subband=3,
+        fb_fundamental_freq=8,
+        fb_upper_bound_freq=88,
+        fb_weight__a=1.25,
+        fb_weight__b=0.25,
+    ):
+
+        FilterbankCCA.__init__(
+            self,
+            electrodes_name=electrodes_name,
+            start_time_index=start_time_index,
+            stop_time_index=stop_time_index,
+            # num_components,
+            num_harmonics=num_harmonics,
+            fb_num_subband=fb_num_subband,
+            fb_fundamental_freq=fb_fundamental_freq,
+            fb_upper_bound_freq=fb_upper_bound_freq,
+            fb_weight__a=fb_weight__a,
+            fb_weight__b=fb_weight__b,
+        )
+
+        CCASpatioTemporal.__init__(
+            self,
+            electrodes_name=electrodes_name,
+            start_time_index=start_time_index,
+            stop_time_index=stop_time_index,
+            num_harmonics=num_harmonics,
+            window_gap=window_gap,
+            window_length=window_length
+        )
+
+    def feature_extractor(self, eeg):
+
+        self._check_predict_input(eeg)
+
+        eeg_with_lags = self.preprocess_fir_eeg(eeg)
+        eeg_fb = self.apply_filter_bank(eeg_with_lags)
+
+        correlations = np.empty([NUM_TARGETS, self.fb_num_subband, self.num_components])
+
+        for target, freq in enumerate(TARGET_FREQUENCY):
+            harmonic = self.harmonic_column(freq)
+            for filter_idx in range(self.fb_num_subband):
+                cca_model = CCACorrelation(n_components=self.num_components, max_iter=CCA_MAX_ITER, scale=False)
+                correlations[target, filter_idx, :] = cca_model.fit_correlation(eeg_fb[filter_idx, ...], harmonic)
+
+        return correlations[:, :, 0]
+
+
+class FBSpatioTemporalCCAFixed(FBSpatioTemporalCCA):
+
+
+    def fit(self, eeg_tensor):
+
+        self._check_fit_input(eeg_tensor)
+        num_blocks = eeg_tensor.shape[0]
+        num_targets = eeg_tensor.shape[1]
+
+        eeg_tensor_preprocessed = np.stack(
+            [
+                self.apply_filter_bank(
+                    self.preprocess_fir_eeg(
+                        eeg_tensor[block, target, ...]
+                    )
+                )
+                for block in range(eeg_tensor.shape[0])
+                for target in range(eeg_tensor.shape[1])
+            ]
+        )
+        eeg_tensor_preprocessed = eeg_tensor_preprocessed.reshape(
+            (num_blocks, num_targets) + eeg_tensor_preprocessed.shape[1:]
+        )
+
+        eeg_tensor_preprocessed = eeg_tensor_preprocessed.transpose([1, 2, 0, 3, 4])
+        eeg_tensor_preprocessed = eeg_tensor_preprocessed.reshape(
+            eeg_tensor_preprocessed.shape[:-3] + (-1, eeg_tensor_preprocessed.shape[-1])
+        )
+
+        self.cca_models = defaultdict(lambda : {})
+
+        for target, freq in enumerate(TARGET_FREQUENCY):
+
+            harmonic = self.harmonic_column(freq)
+            harmonic_concatenated = (
+                harmonic[np.newaxis, :, :] # create new dummy dimension that will be expanded
+                .repeat(num_blocks, axis=0) # repeate the harmonic matrix for each one of the blocks present in eeg, shape=(num_blocks,time,num_harmonics)
+                .reshape(-1, self.num_harmonics * 2) # concatenate harmonics from different blocks in a single lengthy one, shape=(num_blocks*time, num_harmonics)
+            )
+
+            for filter_idx in range(self.fb_num_subband):
+                cca_model = CCACorrelation(n_components=self.num_components, max_iter=CCA_MAX_ITER, scale=False)
+                cca_model.fit(eeg_tensor_preprocessed[target, filter_idx, ...], harmonic_concatenated)
+                self.cca_models[target][filter_idx] = cca_model
+
+        return self
+
+
+    def feature_extractor(self, eeg):
+
+        self._check_predict_input(eeg)
+
+        eeg_with_lags = self.preprocess_fir_eeg(eeg)
+        eeg_fb = self.apply_filter_bank(eeg_with_lags)
+
+        correlations = np.empty([NUM_TARGETS, self.fb_num_subband, self.num_components])
+
+        for target, freq in enumerate(TARGET_FREQUENCY):
+            harmonic = self.harmonic_column(freq)
+            for filter_idx in range(self.fb_num_subband):
+                cca_model = self.cca_models[target][filter_idx]
+                correlations[target, filter_idx, :] = cca_model.correlation(eeg_fb[filter_idx, ...], harmonic)
+
+        return correlations[:, :, 0]

@@ -7,7 +7,7 @@ import sys
     
 def main():
     
-    learner = learners.FBCCA(
+    learner = learners.FilterbankCCA(
         electrodes_name=parameters.electrode_list_fbcca,
         num_harmonics=5,
         fb_num_subband=10,
