@@ -2,30 +2,10 @@ import ssvepcca.pipelines as pipelines
 import ssvepcca.learners as learners
 import ssvepcca.parameters as parameters
 
-import sys
-from dataclasses import dataclass
-
-
-START_TIME_INDEX = 125
-STOP_TIME_INDEX = 875
-OUTPUT_ROOT_FOLDER = "results_new/"
-
-
-@dataclass
-class RunParams:
-    """Class for keeping an experiment parameters"""
-    name: str
-    pipeline_function: callable
-    learner_obj: object
-
-
-def run_exector(run_params: RunParams):
-    pipelines.eval_all_subjects_and_save_pipeline(
-        learner_obj=run_params.learner_obj,
-        fit_pipeline=run_params.pipeline_function,
-        dataset_root_path="../dataset_chines",
-        output_folder=OUTPUT_ROOT_FOLDER + sys.argv[0].split(".py")[0] + "_" + run_params.name
-    )
+from scripts_new.configurations import (
+    START_TIME_INDEX, STOP_TIME_INDEX,
+    RunParams, run_exector
+)
 
     
 RUN_PARAMS = [

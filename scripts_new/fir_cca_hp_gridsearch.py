@@ -2,32 +2,13 @@ import ssvepcca.pipelines as pipelines
 import ssvepcca.learners as learners
 import ssvepcca.parameters as parameters
 
-import sys
-from dataclasses import dataclass
+from scripts_new.configurations import (
+    START_TIME_INDEX, STOP_TIME_INDEX,
+    RunParams, run_exector
+)
 
 
-START_TIME_INDEX = 125
-STOP_TIME_INDEX = 875
-OUTPUT_ROOT_FOLDER = "results_ssccafixed_hp/"
-
-
-@dataclass
-class RunParams:
-    """Class for keeping an experiment parameters"""
-    name: str
-    pipeline_function: callable
-    learner_obj: object
-
-
-def run_exector(run_params: RunParams):
-    pipelines.eval_all_subjects_and_save_pipeline(
-        learner_obj=run_params.learner_obj,
-        fit_pipeline=run_params.pipeline_function,
-        dataset_root_path="../dataset_chines",
-        output_folder=OUTPUT_ROOT_FOLDER + sys.argv[0].split(".py")[0] + "_" + run_params.name
-    )
-
-SS_CCA_WINDOW_LENGTH_LIST = [0, 1, 5, 10, 15, 20, 25, 30, 35, 40]
+FIR_CCA_WINDOW_LENGTH_LIST = list(range(20))
 
 RUN_PARAMS = [
     RunParams(
@@ -42,7 +23,7 @@ RUN_PARAMS = [
             window_length=window_length,
         ),
     )
-    for window_length in SS_CCA_WINDOW_LENGTH_LIST
+    for window_length in FIR_CCA_WINDOW_LENGTH_LIST
 ]
 
 if __name__ == "__main__":
