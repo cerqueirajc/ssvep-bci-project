@@ -8,11 +8,12 @@ from scripts_new.configurations import (
 )
 
 
+SS_CCA_WINDOW_LENGTH = 1
 SS_CCA_WINDOW_GAP_LIST = [0, 1, 5, 10, 15, 20, 25, 30, 35, 40]
 
 RUN_PARAMS = [
     RunParams(
-        f"SS-CCA (0, {window_gap}) Fixed [2s]",
+        f"SS-CCA ({window_gap}, {SS_CCA_WINDOW_LENGTH}) Fixed [2s]",
         pipelines.k_fold_predict,
         learners.CCASpatioTemporalFixed(
             electrodes_name=parameters.electrode_list_fbcca,
@@ -20,7 +21,7 @@ RUN_PARAMS = [
             stop_time_index=STOP_TIME_INDEX,
             num_harmonics=3,
             window_gap=window_gap,
-            window_length=1,
+            window_length=SS_CCA_WINDOW_LENGTH,
         ),
     )
     for window_gap in SS_CCA_WINDOW_GAP_LIST
