@@ -1,6 +1,6 @@
 OUTPUT_ROOT_FOLDER = "results/"
 START_TIME_INDEX = 125
-STOP_TIME_INDEX = 875
+STOP_TIME_INDEX = 625
 
 from dataclasses import dataclass
 import ssvepcca.pipelines as pipelines
