@@ -13,9 +13,9 @@ FIR_CCA_WINDOW_LENGTH_LIST = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 20, 30, 40, 50]
 
 RUN_PARAMS = [
     RunParams(
-        f"SS-CCA_({FIR_CCA_WINDOW_GAP},{window_length})__[2s]",
-        pipelines.test_fit_predict,
-        learners.CCASpatioTemporal(
+        f"SS-CCA_({FIR_CCA_WINDOW_GAP},{window_length})_fixed__[2s]",
+        pipelines.k_fold_predict,
+        learners.CCASpatioTemporalFixed(
             electrodes_name=parameters.electrode_list_fbcca,
             start_time_index=START_TIME_INDEX,
             stop_time_index=STOP_TIME_INDEX,
