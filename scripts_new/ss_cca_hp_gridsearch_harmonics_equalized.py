@@ -9,17 +9,17 @@ from scripts_new.configurations import (
 
 
 SS_CCA_WINDOW_LENGTH = 1
-SS_CCA_WINDOW_GAP_LIST = list(range(31))
+SS_CCA_WINDOW_GAP_LIST = list(range(26,31))
 
 RUN_PARAMS = [
     RunParams(
-        f"SS-CCA_({window_gap},{SS_CCA_WINDOW_LENGTH})_fixed__[2s]",
-        pipelines.k_fold_predict,
-        learners.CCASpatioTemporalFixed(
+        f"SS-CCA_({window_gap},{SS_CCA_WINDOW_LENGTH})__[2s]",
+        pipelines.test_fit_predict,
+        learners.CCASpatioTemporal(
             electrodes_name=parameters.electrode_list_fbcca,
             start_time_index=START_TIME_INDEX,
             stop_time_index=STOP_TIME_INDEX,
-            num_harmonics=3,
+            num_harmonics=5,
             window_gap=window_gap,
             window_length=SS_CCA_WINDOW_LENGTH,
         ),

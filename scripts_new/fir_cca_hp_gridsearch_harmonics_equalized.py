@@ -8,23 +8,23 @@ from scripts_new.configurations import (
 )
 
 
-SS_CCA_WINDOW_LENGTH = 1
-SS_CCA_WINDOW_GAP_LIST = list(range(31))
+FIR_CCA_WINDOW_GAP = 0
+FIR_CCA_WINDOW_LENGTH_LIST = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 20, 30, 40, 50]
 
 RUN_PARAMS = [
     RunParams(
-        f"SS-CCA_({window_gap},{SS_CCA_WINDOW_LENGTH})_fixed__[2s]",
-        pipelines.k_fold_predict,
-        learners.CCASpatioTemporalFixed(
+        f"SS-CCA_({FIR_CCA_WINDOW_GAP},{window_length})__[2s]",
+        pipelines.test_fit_predict,
+        learners.CCASpatioTemporal(
             electrodes_name=parameters.electrode_list_fbcca,
             start_time_index=START_TIME_INDEX,
             stop_time_index=STOP_TIME_INDEX,
-            num_harmonics=3,
-            window_gap=window_gap,
-            window_length=SS_CCA_WINDOW_LENGTH,
+            num_harmonics=5,
+            window_gap=FIR_CCA_WINDOW_GAP,
+            window_length=window_length,
         ),
     )
-    for window_gap in SS_CCA_WINDOW_GAP_LIST
+    for window_length in FIR_CCA_WINDOW_LENGTH_LIST
 ]
 
 if __name__ == "__main__":

@@ -7,12 +7,8 @@ from scripts_new.configurations import (
 )
 
 START_TIME_INDEX = 125
-STOP_TIME_INDEX = 625
-TIME_SUFFIX = "[2s]"
-
-# START_TIME_INDEX = 125
-# STOP_TIME_INDEX = 875
-# TIME_SUFFIX = "[3s]"
+STOP_TIME_INDEX = 875
+TIME_SUFFIX = "[3s]"
     
 RUN_PARAMS = [
     RunParams(

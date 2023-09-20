@@ -9,7 +9,7 @@ from scripts_new.configurations import (
 
 
 SS_CCA_WINDOW_LENGTH = 1
-SS_CCA_WINDOW_GAP_LIST = list(range(20))
+SS_CCA_WINDOW_GAP_LIST = list(range(31))
 
 RUN_PARAMS = [
     RunParams(

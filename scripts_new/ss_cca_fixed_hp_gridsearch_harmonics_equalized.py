@@ -19,7 +19,7 @@ RUN_PARAMS = [
             electrodes_name=parameters.electrode_list_fbcca,
             start_time_index=START_TIME_INDEX,
             stop_time_index=STOP_TIME_INDEX,
-            num_harmonics=3,
+            num_harmonics=5,
             window_gap=window_gap,
             window_length=SS_CCA_WINDOW_LENGTH,
         ),
