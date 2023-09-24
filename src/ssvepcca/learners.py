@@ -5,7 +5,6 @@ from sklearn.cross_decomposition import CCA
 from scipy import signal
 
 from . import runtime_configuration as rc
-# from ssvepcca.definitions import TARGET_FREQUENCY, NUM_TARGETS, NUM_SAMPLES, SAMPLE_FREQ
 from .utils import get_harmonic_columns, electrodes_name_to_index, shift_first_dim
 
 

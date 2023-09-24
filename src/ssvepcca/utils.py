@@ -2,16 +2,20 @@ import numpy as np
 import pandas as pd
 import scipy
 from functools import cache
-
+from typing import Dict, List
 from . import runtime_configuration as rc
 
 
 def check_input_data(data: np.ndarray) -> None:
-    assert data.shape == (rc.num_blocks, rc.num_targets, rc.num_samples, rc.num_electrodes)
+    expected_dim = (rc.num_blocks, rc.num_targets, rc.num_samples, rc.num_electrodes)
+    if not data.shape == expected_dim:
+        raise ValueError(f"Input data dimensions does not match, input {data.shape}, expected {expected_dim}")
 
 
 def check_result_data(data: np.ndarray) -> None:
-    assert data.shape == (rc.num_blocks, rc.num_targets), f"Input result data dimensions does not match: {data.shape}"
+    expected_dim = (rc.num_blocks, rc.num_targets)
+    if not data.shape == (rc.num_blocks, rc.num_targets):
+        raise ValueError(f"Input result data dimensions does not match: input {data.shape}, expected {expected_dim}")
 
 
 def get_time_column(start_time_index: int, stop_time_index: int) -> np.ndarray:
@@ -35,11 +39,11 @@ def get_harmonic_columns(
     return np.concatenate(harmonics).T
 
 
-def electrodes_name_to_index(electrodes):
+def electrodes_name_to_index(electrodes: Dict[str, int]) -> List[int]:
      return [rc.electrodes[electrode_name] for electrode_name in electrodes]
 
 
-def eval_accuracy(result):
+def eval_accuracy(result: np.ndarray) -> List:
     check_result_data(result)
 
     count = 0
@@ -51,12 +55,12 @@ def eval_accuracy(result):
     return [count, count/(rc.num_blocks * rc.num_targets)]
 
 
-def load_mat_data_array(mat_path):
+def load_mat_data_array(mat_path: str) -> np.ndarray:
     mat = scipy.io.loadmat(mat_path)
     return mat["data"].astype(float).T
 
 
-def load_mat_to_pandas(mat_path):
+def load_mat_to_pandas(mat_path: str) -> pd.DataFrame:
 
     mat = scipy.io.loadmat(mat_path)["data"]
 
@@ -77,7 +81,7 @@ def load_mat_to_pandas(mat_path):
     return pd.concat(temp_list)
 
 
-def shift_first_dim(arr, num):
+def shift_first_dim(arr: np.ndarray, num: int) -> np.ndarray:
     """
     Shifts the values of a tensor of time series, assuming the first dimension is the time index.
     """
