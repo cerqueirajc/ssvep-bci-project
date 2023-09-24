@@ -1,4 +1,4 @@
-from setuptools import setup, find_packages  # or find_namespace_packages
+from setuptools import setup  # or find_namespace_packages
 
 setup(
     name="ssvepcca",
@@ -13,7 +13,8 @@ setup(
     install_requires=[
         "numpy",
         "scipy",
-        "sklearn",
-        "pandas"
+        "scikit-learn",
+        "pandas",
+        "toolz"
     ],
 )

@@ -1,10 +1,9 @@
-from ssvepcca.utils import check_input_data, eval_accuracy, load_mat_data_array
-from ssvepcca.definitions import NUM_BLOCKS, NUM_TARGETS, NUM_SUBJECTS
-
 import os
 import numpy as np
 import toolz as fp
 
+from . import runtime_configuration as rc
+from .utils import check_input_data, eval_accuracy, load_mat_data_array
 
 @fp.curry
 def k_fold_predict(data, learner):
@@ -18,20 +17,20 @@ def k_fold_predict(data, learner):
 
     check_input_data(data)
 
-    valid_masks = np.identity(NUM_BLOCKS, dtype=bool)
+    valid_masks = np.identity(rc.num_blocks, dtype=bool)
     train_masks = ~valid_masks
 
-    predictions = np.empty([NUM_BLOCKS, NUM_TARGETS])
+    predictions = np.empty([rc.num_blocks, rc.num_targets])
     predict_proba_list = []
 
-    for block in range(NUM_BLOCKS):
+    for block in range(rc.num_blocks):
         
         train_data = data[train_masks[block], :, :, :]
         valid_data = data[valid_masks[block], :, :, :].squeeze()
         
         learner.fit(train_data)
         
-        for target in range(NUM_TARGETS):
+        for target in range(rc.num_targets):
             prediction, predict_proba = learner.predict(valid_data[target, :, :])
 
             predictions[block, target] = prediction
@@ -51,12 +50,12 @@ def test_fit_predict(data, learner):
 
     check_input_data(data)
 
-    predictions = np.empty([NUM_BLOCKS, NUM_TARGETS])
+    predictions = np.empty([rc.num_blocks, rc.num_targets])
     predict_proba_list = []
 
-    for block in range(NUM_BLOCKS):
+    for block in range(rc.num_blocks):
         predict_proba_list.append([])
-        for target in range(NUM_TARGETS):
+        for target in range(rc.num_targets):
             
             score_data = data[block, target, :, :]
             prediction, predict_proba = learner.predict(score_data)
@@ -77,7 +76,7 @@ def eval_all_subjects_and_save_pipeline(learner_obj, fit_pipeline, dataset_root_
         predict_proba = []
     )
 
-    for subject_num in range(1, NUM_SUBJECTS + 1):
+    for subject_num in range(1, rc.num_subjects + 1):
 
         print(f"Running evalulation for subject {subject_num}.")
 

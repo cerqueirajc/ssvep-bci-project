@@ -4,8 +4,9 @@ import numpy as np
 from sklearn.cross_decomposition import CCA
 from scipy import signal
 
-from ssvepcca.definitions import TARGET_FREQUENCY, NUM_TARGETS, NUM_SAMPLES, SAMPLE_FREQ
-from ssvepcca.utils import get_harmonic_columns, electrodes_name_to_index, shift_first_dim
+from . import runtime_configuration as rc
+# from ssvepcca.definitions import TARGET_FREQUENCY, NUM_TARGETS, NUM_SAMPLES, SAMPLE_FREQ
+from .utils import get_harmonic_columns, electrodes_name_to_index, shift_first_dim
 
 
 CCA_MAX_ITER = 1000
@@ -13,9 +14,9 @@ CCA_MAX_ITER = 1000
 
 class CCACorrelation(CCA):
 
-    def correlation(self, X, Y, n_components=None):
-        if n_components is None or n_components > self.n_components:
-            n_components = self.n_components
+    def correlation(self, X, Y, n_components=None) -> list[float]:
+        if n_components is None or n_components > self.n_components: # type: ignore
+            n_components = self.n_components # type: ignore
 
         x_projection, y_projection = self.transform(X=X, Y=Y)
 
@@ -55,14 +56,14 @@ class CCABase:
     @staticmethod
     def _check_predict_input(input_array):
         assert input_array.ndim == 2, str(input_array.ndim)
-        assert input_array.shape[0] == NUM_SAMPLES, str(input_array.shape[0])
+        assert input_array.shape[0] == rc.num_samples, str(input_array.shape[0])
 
 
     @staticmethod
     def _check_fit_input(input_array):
         assert input_array.ndim == 4
-        assert input_array.shape[-2] == NUM_SAMPLES
-        assert input_array.shape[1] == NUM_TARGETS
+        assert input_array.shape[-2] == rc.num_samples
+        assert input_array.shape[1] == rc.num_targets
 
 
     @staticmethod
@@ -87,9 +88,9 @@ class CCABase:
         eeg = self._filter_eeg_electrodes(eeg, self.electrodes_index)
         eeg = self._filter_eeg_time(eeg, self.start_time_index, self.stop_time_index)
 
-        correlations = np.empty([NUM_TARGETS, self.num_components])
+        correlations = np.empty([rc.num_targets, self.num_components])
 
-        for target, freq in enumerate(TARGET_FREQUENCY):
+        for target, freq in enumerate(rc.target_frequencies):
             harmonic = self.harmonic_column(freq)
             cca_model = CCACorrelation(n_components=self.num_components, max_iter=CCA_MAX_ITER, scale=False)
             correlations[target, :] = cca_model.fit_correlation(eeg, harmonic)
@@ -146,7 +147,7 @@ class CCAFixedCoefficients(CCASingleComponent):
 
         self.cca_models = {}
 
-        for target, freq in enumerate(TARGET_FREQUENCY):
+        for target, freq in enumerate(rc.target_frequencies):
 
             eeg_concatenated = eeg_tensor[:, target, :, :].reshape(-1, num_electrodes)
 
@@ -172,9 +173,9 @@ class CCAFixedCoefficients(CCASingleComponent):
         eeg = self._filter_eeg_electrodes(eeg, self.electrodes_index)
         eeg = self._filter_eeg_time(eeg, self.start_time_index, self.stop_time_index)
 
-        correlations = np.empty([NUM_TARGETS, self.num_components])
+        correlations = np.empty([rc.num_targets, self.num_components])
 
-        for target, freq in enumerate(TARGET_FREQUENCY):
+        for target, freq in enumerate(rc.target_frequencies):
             harmonic = self.harmonic_column(freq)
             correlations[target, :] = self.cca_models[target].correlation(eeg, harmonic)
 
@@ -182,13 +183,6 @@ class CCAFixedCoefficients(CCASingleComponent):
 
 
 class FilterbankCCA(CCASingleComponent):
-
-    CHEBY_ORDER = 6
-    CHEBY_MAX_RIPPLE = 0.5
-    CHEBY_FS = SAMPLE_FREQ
-    CHEBY_BAND_TYPE = "bandpass"
-    FB_BAND_FREQ_TOL = 2
-    FB_PADDING_TYPE = "odd"
 
     def __init__(
         self,
@@ -210,6 +204,13 @@ class FilterbankCCA(CCASingleComponent):
         self.fb_upper_bound_freq=fb_upper_bound_freq
         self.fb_weight__a=fb_weight__a
         self.fb_weight__b=fb_weight__b
+
+        self.CHEBY_ORDER = 6
+        self.CHEBY_MAX_RIPPLE = 0.5
+        self.CHEBY_FS = rc.sample_frequency
+        self.CHEBY_BAND_TYPE = "bandpass"
+        self.FB_BAND_FREQ_TOL = 2
+        self.FB_PADDING_TYPE = "odd"
 
         self.fb_filters = []
         for i in range(self.fb_num_subband):
@@ -263,9 +264,9 @@ class FilterbankCCA(CCASingleComponent):
 
         eeg_fb = self.apply_filter_bank(eeg)
 
-        correlations = np.empty([NUM_TARGETS, self.fb_num_subband])
+        correlations = np.empty([rc.num_targets, self.fb_num_subband])
 
-        for target, freq in enumerate(TARGET_FREQUENCY):
+        for target, freq in enumerate(rc.target_frequencies):
             harmonic = self.harmonic_column(freq)
             for filter_idx in range(self.fb_num_subband):
                 cca_model = CCACorrelation(n_components=self.num_components, max_iter=CCA_MAX_ITER, scale=False)
@@ -291,7 +292,7 @@ class FBCCAFixedCoefficients(FilterbankCCA):
 
         self.cca_models = defaultdict(lambda : {})
 
-        for target, freq in enumerate(TARGET_FREQUENCY):
+        for target, freq in enumerate(rc.target_frequencies):
 
             eeg_fb = self.apply_filter_bank(eeg_tensor[:, target, :, :])
 
@@ -331,9 +332,9 @@ class FBCCAFixedCoefficients(FilterbankCCA):
 
         eeg_fb = super().apply_filter_bank(eeg)
 
-        correlations = np.empty([NUM_TARGETS, self.fb_num_subband])
+        correlations = np.empty([rc.num_targets, self.fb_num_subband])
 
-        for target, freq in enumerate(TARGET_FREQUENCY):
+        for target, freq in enumerate(rc.target_frequencies):
             harmonic = self.harmonic_column(freq)
             for filter_idx in range(self.fb_num_subband):
                 cca_model = self.cca_models[target][filter_idx]
@@ -354,9 +355,9 @@ class AlternativeFBCCA(FilterbankCCA):
         eeg_fb = np.transpose(eeg_fb, axes=(1,2,0)) # time, electrodes, fb_number
         eeg_fb = eeg_fb.reshape(self.get_time_window_size(), -1) # use filterbank as new features
 
-        correlations = np.empty([NUM_TARGETS])
+        correlations = np.empty([rc.num_targets])
 
-        for target, freq in enumerate(TARGET_FREQUENCY):
+        for target, freq in enumerate(rc.target_frequencies):
             harmonic = self.harmonic_column(freq)
 
             cca_model = CCACorrelation(n_components=self.num_components, max_iter=CCA_MAX_ITER, scale=False)
@@ -420,9 +421,9 @@ class CCASpatioTemporal(CCASingleComponent):
         self._check_predict_input(eeg)
         eeg_with_lags = self.preprocess_fir_eeg(eeg)
 
-        correlations = np.empty([NUM_TARGETS, self.num_components])
+        correlations = np.empty([rc.num_targets, self.num_components])
 
-        for target, freq in enumerate(TARGET_FREQUENCY):
+        for target, freq in enumerate(rc.target_frequencies):
             harmonic = self.harmonic_column(freq)
             cca_model = CCACorrelation(n_components=self.num_components, max_iter=CCA_MAX_ITER, scale=False)
             correlations[target, :] = cca_model.fit_correlation(eeg_with_lags, harmonic)
@@ -447,7 +448,7 @@ class CCASpatioTemporalFixed(CCASpatioTemporal):
 
         self.cca_models = {}
 
-        for target, freq in enumerate(TARGET_FREQUENCY):
+        for target, freq in enumerate(rc.target_frequencies):
 
             eeg_concatenated = eeg_tensor_with_lags[:, target, :, :].reshape(
                 eeg_tensor_with_lags.shape[0] * eeg_tensor_with_lags.shape[2], -1
@@ -472,9 +473,9 @@ class CCASpatioTemporalFixed(CCASpatioTemporal):
         self._check_predict_input(eeg)
         eeg_with_lags = self.preprocess_fir_eeg(eeg)
 
-        correlations = np.empty([NUM_TARGETS, self.num_components])
+        correlations = np.empty([rc.num_targets, self.num_components])
 
-        for target, freq in enumerate(TARGET_FREQUENCY):
+        for target, freq in enumerate(rc.target_frequencies):
             harmonic = self.harmonic_column(freq)
             correlations[target, :] = self.cca_models[target].correlation(eeg_with_lags, harmonic)
 
@@ -530,9 +531,9 @@ class FBSpatioTemporalCCA(FilterbankCCA, CCASpatioTemporal):
         eeg_with_lags = self.preprocess_fir_eeg(eeg)
         eeg_fb = self.apply_filter_bank(eeg_with_lags)
 
-        correlations = np.empty([NUM_TARGETS, self.fb_num_subband, self.num_components])
+        correlations = np.empty([rc.num_targets, self.fb_num_subband, self.num_components])
 
-        for target, freq in enumerate(TARGET_FREQUENCY):
+        for target, freq in enumerate(rc.target_frequencies):
             harmonic = self.harmonic_column(freq)
             for filter_idx in range(self.fb_num_subband):
                 cca_model = CCACorrelation(n_components=self.num_components, max_iter=CCA_MAX_ITER, scale=False)
@@ -542,7 +543,6 @@ class FBSpatioTemporalCCA(FilterbankCCA, CCASpatioTemporal):
 
 
 class FBSpatioTemporalCCAFixed(FBSpatioTemporalCCA):
-
 
     def fit(self, eeg_tensor):
 
@@ -572,7 +572,7 @@ class FBSpatioTemporalCCAFixed(FBSpatioTemporalCCA):
 
         self.cca_models = defaultdict(lambda : {})
 
-        for target, freq in enumerate(TARGET_FREQUENCY):
+        for target, freq in enumerate(rc.target_frequencies):
 
             harmonic = self.harmonic_column(freq)
             harmonic_concatenated = (
@@ -596,9 +596,9 @@ class FBSpatioTemporalCCAFixed(FBSpatioTemporalCCA):
         eeg_with_lags = self.preprocess_fir_eeg(eeg)
         eeg_fb = self.apply_filter_bank(eeg_with_lags)
 
-        correlations = np.empty([NUM_TARGETS, self.fb_num_subband, self.num_components])
+        correlations = np.empty([rc.num_targets, self.fb_num_subband, self.num_components])
 
-        for target, freq in enumerate(TARGET_FREQUENCY):
+        for target, freq in enumerate(rc.target_frequencies):
             harmonic = self.harmonic_column(freq)
             for filter_idx in range(self.fb_num_subband):
                 cca_model = self.cca_models[target][filter_idx]
