@@ -4,9 +4,10 @@ import toolz as fp
 
 from . import runtime_configuration as rc
 from .utils import check_input_data, eval_accuracy, load_mat_data_array
+from .learners import CCABase
 
 @fp.curry
-def k_fold_predict(data, learner):
+def k_fold_predict(data: np.ndarray, learner: CCABase):
     """
     leave_one_out_predict
     ------------
@@ -40,7 +41,7 @@ def k_fold_predict(data, learner):
 
 
 @fp.curry
-def test_fit_predict(data, learner):
+def test_fit_predict(data: np.ndarray, learner: CCABase):
     """
     test_fit_predict
     ----------

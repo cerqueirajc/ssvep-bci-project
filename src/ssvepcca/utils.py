@@ -93,3 +93,22 @@ def shift_first_dim(arr: np.ndarray, num: int) -> np.ndarray:
         arr[:num, ...] = np.nan
     return arr
 
+
+def shift_time_dimension(arr: np.ndarray, num: int) -> np.ndarray:
+    """
+    Shifts the values of a tensor of time series, assuming the -2 dimension is the time index.
+    """
+
+    arr=np.roll(arr, num, axis=-2)
+    if num < 0:
+        arr[..., -num:, :] = np.nan
+    elif num > 0:
+        arr[..., :num, :] = np.nan
+    return arr
+
+
+def chain_call(arg, *funcs):
+    result = arg
+    for f in funcs:
+        result = f(result)
+    return result
