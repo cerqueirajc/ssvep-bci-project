@@ -1,12 +1,8 @@
 from dataclasses import dataclass
-from numpy import float64, typing
 
 from .runtime_configuration import RuntimeConfiguration
 
-
 runtime_configuration = RuntimeConfiguration()
-
-NDArrayFloat = typing.NDArray[float64]
 
 @dataclass
 class parameters:

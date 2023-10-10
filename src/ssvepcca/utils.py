@@ -105,10 +105,3 @@ def shift_time_dimension(arr: np.ndarray, num: int) -> np.ndarray:
     elif num > 0:
         arr[..., :num, :] = np.nan
     return arr
-
-
-def chain_call(arg, *funcs):
-    result = arg
-    for f in funcs:
-        result = f(result)
-    return result
