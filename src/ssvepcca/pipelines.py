@@ -4,10 +4,10 @@ import toolz as fp
 
 from . import runtime_configuration as rc
 from .utils import check_input_data, eval_accuracy, load_mat_data_array
-from .learners import CCABase
+from .transformers import SSVEPAlgorithm, EEGType
 
 @fp.curry
-def k_fold_predict(data: np.ndarray, learner: CCABase):
+def k_fold_predict(data: np.ndarray, learner: SSVEPAlgorithm):
     """
     leave_one_out_predict
     ------------
@@ -26,13 +26,13 @@ def k_fold_predict(data: np.ndarray, learner: CCABase):
 
     for block in range(rc.num_blocks):
         
-        train_data = data[train_masks[block], :, :, :]
-        valid_data = data[valid_masks[block], :, :, :].squeeze()
-        
-        learner.fit(train_data)
+        train_data_raw = data[train_masks[block], :, :, :]
+        valid_data_raw = data[valid_masks[block], :, :, :].squeeze()
+        learner.fit(EEGType(train_data_raw, 0, rc.num_samples))
         
         for target in range(rc.num_targets):
-            prediction, predict_proba = learner.predict(valid_data[target, :, :])
+            valid_data = EEGType(valid_data_raw[target, :, :], 0, rc.num_samples)
+            prediction, predict_proba = learner(valid_data)
 
             predictions[block, target] = prediction
             predict_proba_list.append(predict_proba)
@@ -41,7 +41,7 @@ def k_fold_predict(data: np.ndarray, learner: CCABase):
 
 
 @fp.curry
-def test_fit_predict(data: np.ndarray, learner: CCABase):
+def test_fit_predict(data: np.ndarray, learner: SSVEPAlgorithm):
     """
     test_fit_predict
     ----------
@@ -57,9 +57,9 @@ def test_fit_predict(data: np.ndarray, learner: CCABase):
     for block in range(rc.num_blocks):
         predict_proba_list.append([])
         for target in range(rc.num_targets):
-            
-            score_data = data[block, target, :, :]
-            prediction, predict_proba = learner.predict(score_data)
+            score_data = EEGType(data[block, target, :, :], 0, rc.num_samples)
+
+            prediction, predict_proba = learner(score_data)
             
             predictions[block, target] = prediction
             predict_proba_list[block].append(predict_proba)

@@ -5,13 +5,14 @@ STOP_TIME_INDEX = 625
 from dataclasses import dataclass
 import ssvepcca.pipelines as pipelines
 import sys
+from typing import Callable
 
 
 @dataclass
 class RunParams:
     """Class for keeping an experiment parameters"""
     name: str
-    pipeline_function: callable
+    pipeline_function: Callable
     learner_obj: object
 
 

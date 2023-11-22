@@ -1,6 +1,9 @@
 from dataclasses import dataclass
+from numpy import typing as npt, float64
 
 from .runtime_configuration import RuntimeConfiguration
+
+NDArrayFloat = npt.NDArray[float64]
 
 runtime_configuration = RuntimeConfiguration()
 

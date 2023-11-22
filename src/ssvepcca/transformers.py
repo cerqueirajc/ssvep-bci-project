@@ -11,6 +11,14 @@ from sklearn.cross_decomposition import CCA
 from . import runtime_configuration as rc
 from .utils import get_harmonic_columns, electrodes_name_to_index, shift_time_dimension
 
+""" TODO
+
+Também preciso adicionar a parte de string com os algoritmos, evitar repetir experimentos já feito (faz sentido?)
+
+Também preciso arrumar a função de Fit do CCA Learner. Decidir se preciso retornar scorado ou não. Fica mais pesado, mas se tiver
+mais learners depois dele, o certo é retornar..
+"""
+
 
 @dataclass
 class EEGType:
@@ -23,13 +31,12 @@ class EEGType:
             raise ValueError("EEG time dimension size does not match start and stop index range")
 
 CorrelationType = NDArray[np.float64]
-
 TransformerReturnType = Union[CorrelationType, EEGType]
 
 
 class CCALearner(CCA):
     n_components: int
-    
+
     def correlation(self, X: NDArray, Y: NDArray, n_components: Optional[int] = None) -> list[float]:
         if n_components is None or n_components > self.n_components:
             n_components = self.n_components
@@ -43,13 +50,13 @@ class CCALearner(CCA):
 
     def fit_correlation(self, X: NDArray, Y: NDArray, n_components: Optional[int] = None):
         return self.fit(X, Y).correlation(X, Y, n_components)
-    
+
 
 class Transformer(ABC):
     @abstractmethod
     def __call__(self, eeg: TransformerReturnType) -> TransformerReturnType:
         pass
-    
+
     @abstractmethod
     def fit(self, eeg: TransformerReturnType):
         pass
@@ -76,9 +83,13 @@ class TimeFilter(NonTrainableTransformer):
         self.stop_time_idx = stop_time_idx
 
     def __call__(self, eeg: EEGType) -> EEGType:
-        start_time_idx = self.start_time_idx or eeg.start_time_idx
-        stop_time_idx = self.stop_time_idx or eeg.stop_time_idx
-        return EEGType(eeg.data[..., self.start_time_idx:self.stop_time_idx, :], start_time_idx, stop_time_idx)
+        start_time_idx: int = self.start_time_idx or eeg.start_time_idx
+        stop_time_idx: int = self.stop_time_idx or eeg.stop_time_idx
+
+        offset_start_time_idx = start_time_idx - eeg.start_time_idx
+        offset_stop_time_idx = stop_time_idx - eeg.start_time_idx
+
+        return EEGType(eeg.data[..., offset_start_time_idx:offset_stop_time_idx, :], start_time_idx, stop_time_idx)
 
 
 class DummyProjector(NonTrainableTransformer):
@@ -87,7 +98,7 @@ class DummyProjector(NonTrainableTransformer):
 
 
 class CCABase:
-    
+
     CCA_MAX_ITER = 1000
 
     def __init__(
@@ -106,7 +117,7 @@ class CCAModeCorrelation(CCABase, NonTrainableTransformer):
 
     def __call__(self, eeg: EEGType) -> CorrelationType:
         correlations = np.empty([rc.num_targets, self.num_projections, self.num_components])
-        
+
         for target, freq in enumerate(rc.target_frequencies):
             harmonic = get_harmonic_columns(freq, eeg.start_time_idx, eeg.stop_time_idx, self.num_harmonics)
 
@@ -176,13 +187,13 @@ class FilterbankProjector(NonTrainableTransformer):
         )
 
         for filter_idx, filter_params in enumerate(self.fb_filters):
-           for feature_idx in range(eeg_fb.shape[-1]):
-                eeg_fb[..., filter_idx, :, feature_idx] = scipy.signal.filtfilt(
-                    x=eeg_fb[filter_idx, :, feature_idx],
-                    b=filter_params["b"],
-                    a=filter_params["a"],
-                    padtype=self.FB_PADDING_TYPE
-                )
+            eeg_fb[..., filter_idx, :, :] = scipy.signal.filtfilt(
+                x=eeg_fb[..., filter_idx, :, :],
+                b=filter_params["b"],
+                a=filter_params["a"],
+                padtype=self.FB_PADDING_TYPE,
+                axis=-2
+            )
 
         return replace(eeg, data=eeg_fb)
 
@@ -235,6 +246,53 @@ class SpatioTemporalBank(NonTrainableTransformer):
         return replace(eeg, data=eeg_reshaped)
 
 
+class CCAModeFilter(CCABase, Transformer):
+
+    def __call__(self, eeg: EEGType) -> CorrelationType:
+
+        correlations = np.empty([rc.num_targets, self.num_projections, self.num_components])
+        for target, freq in enumerate(rc.target_frequencies):
+            harmonic = get_harmonic_columns(freq, eeg.start_time_idx, eeg.stop_time_idx, self.num_harmonics)
+            for proj in range(self.num_projections):
+                correlations[target, proj, :] = self.cca_models[target][proj].correlation(eeg.data[proj, ...], harmonic)
+
+        return correlations
+
+
+    def fit(self, eeg_tensor: EEGType):
+        """Expects eeg_tensor with num_dim=5 and dims=(num_blocks, num_targets, num_projections, num_samples, num_electrodes)"""
+
+        num_blocks = eeg_tensor.data.shape[0]
+        num_electrodes = eeg_tensor.data.shape[-1]
+
+        self.cca_models = defaultdict(lambda : {})
+
+        for target, freq in enumerate(rc.target_frequencies):
+            eeg_blocks = (
+                eeg_tensor.data[:, target, ...]                     # num_blocks, num_projections, num_samples, num_electrodes
+                .transpose([1, 0, 2, 3])                            # num_projections, num_blocks, num_samples, num_electrodes
+                .reshape(self.num_projections, -1, num_electrodes)  # num_projections, num_blocks*num_samples, num_electrodes
+            )
+
+            harmonic = get_harmonic_columns(freq, eeg_tensor.start_time_idx, eeg_tensor.stop_time_idx, self.num_harmonics)
+
+            harmonic_concatenated = (
+                # create new dummy dimension that will be expanded
+                harmonic[np.newaxis, :, :]
+                # repeate the harmonic matrix for each one of the blocks present in eeg, shape=(num_blocks,time,num_harmonics)
+                .repeat(num_blocks, axis=0)
+                # concatenate harmonics from different blocks in a single lengthy one, shape=(num_blocks*time, num_harmonics)
+                .reshape(-1, self.num_harmonics * 2)
+            )
+
+            for proj in range(self.num_projections):
+                cca_model = CCALearner(n_components=self.num_components, max_iter=self.CCA_MAX_ITER, scale=False)
+                cca_model.fit(eeg_blocks[proj, ...], harmonic_concatenated)
+                self.cca_models[target][proj] = cca_model
+
+        return self.__call__(replace(eeg_tensor, data=eeg_tensor.data[0,0,...]))
+
+
 def chain_call_transformers(arg: TransformerReturnType, *funcs: Callable) -> TransformerReturnType:
     result = arg
     for f in funcs:
@@ -242,8 +300,23 @@ def chain_call_transformers(arg: TransformerReturnType, *funcs: Callable) -> Tra
     return result
 
 
-class StandardCCA:
-    
+class SSVEPAlgorithm:
+    pipeline: Tuple[Transformer, ...]
+
+    def __str__(self):
+        return self.__class__.__name__
+
+    def __call__(self, eeg: EEGType) -> Tuple[np.intp, CorrelationType]:
+        res: Any = chain_call_transformers(eeg, *self.pipeline)
+        return np.argmax(res), res
+
+    def fit(self, eeg_tensor: EEGType) -> TransformerReturnType:
+        res = chain_call_transformers(eeg_tensor, *[p.fit for p in self.pipeline])
+        return res
+
+
+class StandardCCA(SSVEPAlgorithm):
+
     def __init__(
         self,
         electrodes_name=[],
@@ -274,19 +347,14 @@ class StandardCCA:
             Squeeze()
         )
 
-    def __call__(self, eeg: EEGType) -> Tuple[np.intp, CorrelationType]:
-        res: Any = chain_call_transformers(eeg, *self.pipeline)
-        return np.argmax(res), res
 
-
-class FilterbankCCA:
+class FilterbankCCA(SSVEPAlgorithm):
 
     def __init__(
         self,
         electrodes_name=[],
         start_time_idx=0,
         stop_time_idx=1500,
-        num_components=1,
         num_harmonics=3,
         fb_num_subband=3,
         fb_fundamental_freq=8,
@@ -305,7 +373,7 @@ class FilterbankCCA:
         self.fb_upper_bound_freq=fb_upper_bound_freq
         self.fb_weight__a=fb_weight__a
         self.fb_weight__b=fb_weight__b
-        
+
         self.CHEBY_ORDER = 6
         self.CHEBY_MAX_RIPPLE = 0.5
         self.CHEBY_FS = rc.sample_frequency
@@ -340,27 +408,21 @@ class FilterbankCCA:
             )
         )
 
-    def __call__(self, eeg: EEGType) -> Tuple[np.intp, CorrelationType]:
-        res: Any = chain_call_transformers(eeg, *self.pipeline)
-        return np.argmax(res), res
-    
 
-
-class SpatioTemporalCCA:
+class SpatioTemporalCCA(SSVEPAlgorithm):
 
     def __init__(
         self,
         electrodes_name=[],
         start_time_idx=0,
         stop_time_idx=1500,
-        # num_components=1,
         num_harmonics=3,
         window_gap=0,
         window_length=5
     ):
-        # if window_length + window_gap > start_time_idx:
-        #     raise ValueError("Value of start_time_idx must be smaller or equal to window_length + window_gap")
-        
+        if window_length + window_gap > start_time_idx:
+            raise ValueError("Value of start_time_idx must be smaller or equal to window_length + window_gap")
+
         self.start_time_idx = start_time_idx
         self.stop_time_idx = stop_time_idx
         self.electrodes_name = electrodes_name
@@ -375,9 +437,9 @@ class SpatioTemporalCCA:
     def initialize_pipeline(self):
         self.pipeline = (
             ElectrodesFilter(self.electrodes_index),
-            TimeFilter(self.start_time_idx, self.stop_time_idx),
+            TimeFilter(None, self.stop_time_idx),
             SpatioTemporalBank(window_gap=self.window_gap, window_length = self.window_length),
-            TimeFilter(self.window_gap + self.window_length, None),
+            TimeFilter(max([self.window_gap + self.window_length, self.start_time_idx]), None),
             DummyProjector(),
             CCAModeCorrelation(
                 num_components=self.num_components,
@@ -387,68 +449,14 @@ class SpatioTemporalCCA:
             Squeeze()
         )
 
-    def __call__(self, eeg: EEGType) -> Tuple[np.intp, CorrelationType]:
-        res: Any = chain_call_transformers(eeg, *self.pipeline)
-        return np.argmax(res), res
 
+class StandardCCAFilter(SSVEPAlgorithm):
 
-# class FitPreprocessing:
-#     def __call__(self, eeg_tensor: NDArrayFloat) -> NDArrayFloat:
-#         return eeg_tensor
-
-
-class CCAModeFilter(CCABase, Transformer):
-
-    def __call__(self, eeg: EEGType) -> CorrelationType:
-        
-        correlations = np.empty([rc.num_targets, self.num_projections, self.num_components])
-        for target, freq in enumerate(rc.target_frequencies):
-            harmonic = get_harmonic_columns(freq, eeg.start_time_idx, eeg.stop_time_idx, self.num_harmonics)
-            for proj in range(self.num_projections):
-                correlations[target, proj, :] = self.cca_models[target][proj].correlation(eeg.data[proj, ...], harmonic)
-
-        return correlations
-
-
-    def fit(self, eeg_tensor: EEGType):
-        """Expects eeg_tensor with num_dim=5 and dims=(num_blocks, num_targets, num_projections, num_samples, num_electrodes)"""
-        
-        num_blocks = eeg_tensor.data.shape[0]
-        num_electrodes = eeg_tensor.data.shape[-1]
-
-        self.cca_models = defaultdict(lambda : {})
-
-        for target, freq in enumerate(rc.target_frequencies):
-            eeg_blocks = (
-                eeg_tensor.data[:, target, ...]                     # num_blocks, num_projections, num_samples, num_electrodes
-                .transpose([1, 0, 2, 3])                            # num_projections, num_blocks, num_samples, num_electrodes
-                .reshape(self.num_projections, -1, num_electrodes)  # num_projections, num_blocks*num_samples, num_electrodes
-            )
-
-            harmonic = get_harmonic_columns(freq, eeg_tensor.start_time_idx, eeg_tensor.stop_time_idx, self.num_harmonics)
-
-            harmonic_concatenated = (
-                harmonic[np.newaxis, :, :] # create new dummy dimension that will be expanded
-                .repeat(num_blocks, axis=0) # repeate the harmonic matrix for each one of the blocks present in eeg, shape=(num_blocks,time,num_harmonics)
-                .reshape(-1, self.num_harmonics * 2) # concatenate harmonics from different blocks in a single lengthy one, shape=(num_blocks*time, num_harmonics)
-            )
-
-            for proj in range(self.num_projections):
-                cca_model = CCALearner(n_components=self.num_components, max_iter=self.CCA_MAX_ITER, scale=False)
-                cca_model.fit(eeg_blocks[proj, ...], harmonic_concatenated)
-                self.cca_models[target][proj] = cca_model
-
-        return self.__call__(replace(eeg_tensor, data=eeg_tensor.data[0,0,...]))
-    
-
-class StandardCCAFilter:
-    
     def __init__(
         self,
         electrodes_name=[],
         start_time_idx=0,
         stop_time_idx=1500,
-        # num_components=1,
         num_harmonics=3,
     ) -> None:
 
@@ -473,10 +481,28 @@ class StandardCCAFilter:
             Squeeze()
         )
 
-    def fit(self, eeg_tensor: EEGType) -> TransformerReturnType:
-        res = chain_call_transformers(eeg_tensor, *[p.fit for p in self.pipeline])
-        return res
 
-    def __call__(self, eeg: EEGType) -> Tuple[np.intp, CorrelationType]:
-        res: Any = chain_call_transformers(eeg, *self.pipeline)
-        return np.argmax(res), res
+class FilterbankCCAFilter(FilterbankCCA):
+    def initialize_pipeline(self):
+        self.pipeline = (
+            ElectrodesFilter(self.electrodes_index),
+            TimeFilter(self.start_time_idx, self.stop_time_idx),
+            FilterbankProjector(
+                fb_num_subband=self.fb_num_subband,
+                fb_fundamental_freq=self.fb_fundamental_freq,
+                fb_upper_bound_freq=self.fb_upper_bound_freq,
+                fb_weight__a=self.fb_weight__a,
+                fb_weight__b=self.fb_weight__b
+            ),
+            CCAModeFilter(
+                num_components=self.num_components,
+                num_harmonics=self.num_harmonics,
+                num_projections=self.fb_num_subband
+            ),
+            Squeeze(),
+            FilterBankPredictProba(
+                fb_num_subband=self.fb_num_subband,
+                fb_weight__a=self.fb_weight__a,
+                fb_weight__b=self.fb_weight__b
+            )
+        )
