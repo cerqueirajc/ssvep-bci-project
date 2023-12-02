@@ -5,7 +5,8 @@ import toolz as fp
 
 from . import runtime_configuration as rc
 from .utils import check_input_data, eval_accuracy, load_mat_data_array
-from .transformers import SSVEPAlgorithm, EEGType
+from .transformers import EEGType
+from .algorithms import SSVEPAlgorithm
 
 
 @fp.curry
