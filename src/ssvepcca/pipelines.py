@@ -1,10 +1,12 @@
 import os
+import time
 import numpy as np
 import toolz as fp
 
 from . import runtime_configuration as rc
 from .utils import check_input_data, eval_accuracy, load_mat_data_array
 from .transformers import SSVEPAlgorithm, EEGType
+
 
 @fp.curry
 def k_fold_predict(data: np.ndarray, learner: SSVEPAlgorithm):
@@ -25,12 +27,13 @@ def k_fold_predict(data: np.ndarray, learner: SSVEPAlgorithm):
     predict_proba_list = []
 
     for block in range(rc.num_blocks):
-        
+
         train_data_raw = data[train_masks[block], :, :, :]
         valid_data_raw = data[valid_masks[block], :, :, :].squeeze()
         learner.fit(EEGType(train_data_raw, 0, rc.num_samples))
         
         for target in range(rc.num_targets):
+
             valid_data = EEGType(valid_data_raw[target, :, :], 0, rc.num_samples)
             prediction, predict_proba = learner(valid_data)
 
@@ -55,10 +58,12 @@ def test_fit_predict(data: np.ndarray, learner: SSVEPAlgorithm):
     predict_proba_list = []
 
     for block in range(rc.num_blocks):
+        
         predict_proba_list.append([])
+        
         for target in range(rc.num_targets):
+            
             score_data = EEGType(data[block, target, :, :], 0, rc.num_samples)
-
             prediction, predict_proba = learner(score_data)
             
             predictions[block, target] = prediction

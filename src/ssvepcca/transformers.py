@@ -2,6 +2,7 @@ from abc import ABC, abstractmethod
 from collections import defaultdict
 from typing import Any, Optional, List, Callable, Tuple, Union
 from dataclasses import dataclass, replace
+import time
 
 import scipy
 import numpy as np
@@ -77,19 +78,43 @@ class ElectrodesFilter(NonTrainableTransformer):
         return eeg
 
 
-class TimeFilter(NonTrainableTransformer):
-    def __init__(self, start_time_idx: Optional[int], stop_time_idx: Optional[int]) -> None:
+class TimeFilter(Transformer):
+    """
+    TimeFilter
+
+    This transformer is unique because although it is a transformer that doesn't require
+    training, it must have different behavior when called within a training context vs
+    a non-training context. We want to have different start and stop time index, depending
+    on the context.
+    """
+    def __init__(self,
+                 start_time_idx: Optional[int],
+                 stop_time_idx: Optional[int],
+                 fit_start_time_idx: Optional[int] = None,
+                 fit_stop_time_idx: Optional[int] = None) -> None:
+
         self.start_time_idx = start_time_idx
         self.stop_time_idx = stop_time_idx
+        self.fit_start_time_idx = fit_start_time_idx
+        self.fit_stop_time_idx = fit_stop_time_idx
 
-    def __call__(self, eeg: EEGType) -> EEGType:
-        start_time_idx: int = self.start_time_idx or eeg.start_time_idx
-        stop_time_idx: int = self.stop_time_idx or eeg.stop_time_idx
-
+    def time_filter(self, eeg: EEGType, start_time_idx: int, stop_time_idx: int) -> EEGType:
         offset_start_time_idx = start_time_idx - eeg.start_time_idx
         offset_stop_time_idx = stop_time_idx - eeg.start_time_idx
 
         return EEGType(eeg.data[..., offset_start_time_idx:offset_stop_time_idx, :], start_time_idx, stop_time_idx)
+
+    def __call__(self, eeg: EEGType) -> EEGType:
+        start_time_idx = self.start_time_idx or eeg.start_time_idx
+        stop_time_idx = self.stop_time_idx or eeg.stop_time_idx
+
+        return self.time_filter(eeg, start_time_idx, stop_time_idx)
+
+    def fit(self, eeg: EEGType):
+        start_time_idx = self.fit_start_time_idx or self.start_time_idx or eeg.start_time_idx
+        stop_time_idx = self.fit_stop_time_idx or self.stop_time_idx or eeg.stop_time_idx
+
+        return self.time_filter(eeg, start_time_idx, stop_time_idx)
 
 
 class DummyProjector(NonTrainableTransformer):
@@ -104,32 +129,36 @@ class CCABase:
     def __init__(
             self,
             num_components: int,
-            num_harmonics: int,
-            num_projections: int
+            num_harmonics: int
         ) -> None:
 
         self.num_components: int = num_components
         self.num_harmonics: int = num_harmonics
-        self.num_projections: int = num_projections
 
 
 class CCAModeCorrelation(CCABase, NonTrainableTransformer):
 
     def __call__(self, eeg: EEGType) -> CorrelationType:
-        correlations = np.empty([rc.num_targets, self.num_projections, self.num_components])
+        
+        num_projections = eeg.data.shape[0]
+        correlations = np.empty([rc.num_targets, num_projections, self.num_components])
 
         for target, freq in enumerate(rc.target_frequencies):
             harmonic = get_harmonic_columns(freq, eeg.start_time_idx, eeg.stop_time_idx, self.num_harmonics)
 
-            for proj in range(self.num_projections):
-                cca_model = CCALearner(n_components=self.num_components, max_iter=self.CCA_MAX_ITER, scale=False)
+            for proj in range(num_projections):
+                cca_model = CCALearner(n_components=self.num_components, max_iter=self.CCA_MAX_ITER, scale=True)
                 correlations[target, proj, :] = cca_model.fit_correlation(eeg.data[proj, :, :], harmonic)
 
         return correlations
 
 
 class Squeeze(NonTrainableTransformer):
-    """This is just a wrapper around Numpy's squeeze function, just to keep code consistent"""
+    """
+    Squeeze is a numpy function that removes dimensions with length 1 from an array.
+
+    This is just a wrapper around Numpy's squeeze function, just to keep code consistent
+    """
     def __call__(self, eeg: TransformerReturnType) -> TransformerReturnType:
         if isinstance(eeg, EEGType):
             return replace(eeg, data=np.squeeze(eeg.data))
@@ -144,15 +173,11 @@ class FilterbankProjector(NonTrainableTransformer):
         fb_num_subband=3,
         fb_fundamental_freq=8,
         fb_upper_bound_freq=88,
-        fb_weight__a=1.25,
-        fb_weight__b=0.25,
     ):
 
         self.fb_num_subband=fb_num_subband
         self.fb_fundamental_freq = fb_fundamental_freq
         self.fb_upper_bound_freq=fb_upper_bound_freq
-        self.fb_weight__a=fb_weight__a
-        self.fb_weight__b=fb_weight__b
 
         self.CHEBY_ORDER = 6
         self.CHEBY_MAX_RIPPLE = 0.5
@@ -250,10 +275,12 @@ class CCAModeFilter(CCABase, Transformer):
 
     def __call__(self, eeg: EEGType) -> CorrelationType:
 
-        correlations = np.empty([rc.num_targets, self.num_projections, self.num_components])
+        num_projections = eeg.data.shape[1]
+        correlations = np.empty([rc.num_targets, num_projections, self.num_components])
+
         for target, freq in enumerate(rc.target_frequencies):
             harmonic = get_harmonic_columns(freq, eeg.start_time_idx, eeg.stop_time_idx, self.num_harmonics)
-            for proj in range(self.num_projections):
+            for proj in range(num_projections):
                 correlations[target, proj, :] = self.cca_models[target][proj].correlation(eeg.data[proj, ...], harmonic)
 
         return correlations
@@ -263,6 +290,7 @@ class CCAModeFilter(CCABase, Transformer):
         """Expects eeg_tensor with num_dim=5 and dims=(num_blocks, num_targets, num_projections, num_samples, num_electrodes)"""
 
         num_blocks = eeg_tensor.data.shape[0]
+        num_projections = eeg_tensor.data.shape[2]
         num_electrodes = eeg_tensor.data.shape[-1]
 
         self.cca_models = defaultdict(lambda : {})
@@ -271,7 +299,7 @@ class CCAModeFilter(CCABase, Transformer):
             eeg_blocks = (
                 eeg_tensor.data[:, target, ...]                     # num_blocks, num_projections, num_samples, num_electrodes
                 .transpose([1, 0, 2, 3])                            # num_projections, num_blocks, num_samples, num_electrodes
-                .reshape(self.num_projections, -1, num_electrodes)  # num_projections, num_blocks*num_samples, num_electrodes
+                .reshape(num_projections, -1, num_electrodes)  # num_projections, num_blocks*num_samples, num_electrodes
             )
 
             harmonic = get_harmonic_columns(freq, eeg_tensor.start_time_idx, eeg_tensor.stop_time_idx, self.num_harmonics)
@@ -285,18 +313,26 @@ class CCAModeFilter(CCABase, Transformer):
                 .reshape(-1, self.num_harmonics * 2)
             )
 
-            for proj in range(self.num_projections):
+            for proj in range(num_projections):
                 cca_model = CCALearner(n_components=self.num_components, max_iter=self.CCA_MAX_ITER, scale=False)
                 cca_model.fit(eeg_blocks[proj, ...], harmonic_concatenated)
                 self.cca_models[target][proj] = cca_model
 
+        """
+        If we want to fit more estimators after the CCAModeFilter, we need to change the return time here. Returning
+        what we have here now `eeg_tensor.data[0,0,...]` is not enough. Ideally we should return cross-val-predictions,
+        but the bare minimum would be to return a {num_blocks, num_targets, ...} tensor.
+        """
         return self.__call__(replace(eeg_tensor, data=eeg_tensor.data[0,0,...]))
 
 
 def chain_call_transformers(arg: TransformerReturnType, *funcs: Callable) -> TransformerReturnType:
     result = arg
-    for f in funcs:
+    for i, f in enumerate(funcs):
+        # t1 = time.perf_counter()
         result = f(result)
+        # t2 = time.perf_counter()
+        # print("called id ", i, ", time elapsed:", t2-t1)
     return result
 
 
@@ -322,8 +358,7 @@ class StandardCCA(SSVEPAlgorithm):
         electrodes_name=[],
         start_time_idx=0,
         stop_time_idx=1500,
-        # num_components=1,
-        num_harmonics=3,
+        num_harmonics=5,
     ) -> None:
 
         self.start_time_idx = start_time_idx
@@ -341,8 +376,7 @@ class StandardCCA(SSVEPAlgorithm):
             DummyProjector(),
             CCAModeCorrelation(
                 num_components=self.num_components,
-                num_harmonics=self.num_harmonics,
-                num_projections=1
+                num_harmonics=self.num_harmonics
             ),
             Squeeze()
         )
@@ -355,7 +389,7 @@ class FilterbankCCA(SSVEPAlgorithm):
         electrodes_name=[],
         start_time_idx=0,
         stop_time_idx=1500,
-        num_harmonics=3,
+        num_harmonics=5,
         fb_num_subband=3,
         fb_fundamental_freq=8,
         fb_upper_bound_freq=88,
@@ -373,14 +407,6 @@ class FilterbankCCA(SSVEPAlgorithm):
         self.fb_upper_bound_freq=fb_upper_bound_freq
         self.fb_weight__a=fb_weight__a
         self.fb_weight__b=fb_weight__b
-
-        self.CHEBY_ORDER = 6
-        self.CHEBY_MAX_RIPPLE = 0.5
-        self.CHEBY_FS = rc.sample_frequency
-        self.CHEBY_BAND_TYPE = "bandpass"
-        self.FB_BAND_FREQ_TOL = 2
-        self.FB_PADDING_TYPE = "odd"
-
         self.initialize_pipeline()
 
 
@@ -392,13 +418,10 @@ class FilterbankCCA(SSVEPAlgorithm):
                 fb_num_subband=self.fb_num_subband,
                 fb_fundamental_freq=self.fb_fundamental_freq,
                 fb_upper_bound_freq=self.fb_upper_bound_freq,
-                fb_weight__a=self.fb_weight__a,
-                fb_weight__b=self.fb_weight__b
             ),
             CCAModeCorrelation(
                 num_components=self.num_components,
                 num_harmonics=self.num_harmonics,
-                num_projections=self.fb_num_subband
             ),
             Squeeze(),
             FilterBankPredictProba(
@@ -416,7 +439,7 @@ class SpatioTemporalCCA(SSVEPAlgorithm):
         electrodes_name=[],
         start_time_idx=0,
         stop_time_idx=1500,
-        num_harmonics=3,
+        num_harmonics=5,
         window_gap=0,
         window_length=5
     ):
@@ -443,22 +466,30 @@ class SpatioTemporalCCA(SSVEPAlgorithm):
             DummyProjector(),
             CCAModeCorrelation(
                 num_components=self.num_components,
-                num_harmonics=self.num_harmonics,
-                num_projections=1
+                num_harmonics=self.num_harmonics
             ),
             Squeeze()
         )
 
 
-class StandardCCAFilter(SSVEPAlgorithm):
+class FBSpatioTemporalCCA(SSVEPAlgorithm):
 
     def __init__(
         self,
         electrodes_name=[],
         start_time_idx=0,
         stop_time_idx=1500,
-        num_harmonics=3,
-    ) -> None:
+        num_harmonics=5,
+        fb_num_subband=3,
+        fb_fundamental_freq=8,
+        fb_upper_bound_freq=88,
+        fb_weight__a=1.25,
+        fb_weight__b=0.25,
+        window_gap=0,
+        window_length=5
+    ):
+        if window_length + window_gap > start_time_idx:
+            raise ValueError("Value of start_time_idx must be smaller or equal to window_length + window_gap")
 
         self.start_time_idx = start_time_idx
         self.stop_time_idx = stop_time_idx
@@ -466,38 +497,32 @@ class StandardCCAFilter(SSVEPAlgorithm):
         self.electrodes_index = electrodes_name_to_index(electrodes_name)
         self.num_components = 1 # TODO implement multiple components
         self.num_harmonics = num_harmonics
+
+        self.fb_num_subband=fb_num_subband
+        self.fb_fundamental_freq = fb_fundamental_freq
+        self.fb_upper_bound_freq=fb_upper_bound_freq
+        self.fb_weight__a=fb_weight__a
+        self.fb_weight__b=fb_weight__b
+
+        self.window_gap=window_gap
+        self.window_length=window_length
         self.initialize_pipeline()
 
-    def initialize_pipeline(self) -> None:
-        self.pipeline = (
-            ElectrodesFilter(self.electrodes_index),
-            TimeFilter(self.start_time_idx, self.stop_time_idx),
-            DummyProjector(),
-            CCAModeFilter(
-                num_components=self.num_components,
-                num_harmonics=self.num_harmonics,
-                num_projections=1
-            ),
-            Squeeze()
-        )
 
-
-class FilterbankCCAFilter(FilterbankCCA):
     def initialize_pipeline(self):
         self.pipeline = (
             ElectrodesFilter(self.electrodes_index),
-            TimeFilter(self.start_time_idx, self.stop_time_idx),
+            TimeFilter(None, self.stop_time_idx),
+            SpatioTemporalBank(window_gap=self.window_gap, window_length = self.window_length),
+            TimeFilter(max([self.window_gap + self.window_length, self.start_time_idx]), None),
             FilterbankProjector(
                 fb_num_subband=self.fb_num_subband,
                 fb_fundamental_freq=self.fb_fundamental_freq,
                 fb_upper_bound_freq=self.fb_upper_bound_freq,
-                fb_weight__a=self.fb_weight__a,
-                fb_weight__b=self.fb_weight__b
             ),
-            CCAModeFilter(
+            CCAModeCorrelation(
                 num_components=self.num_components,
-                num_harmonics=self.num_harmonics,
-                num_projections=self.fb_num_subband
+                num_harmonics=self.num_harmonics
             ),
             Squeeze(),
             FilterBankPredictProba(
@@ -505,4 +530,153 @@ class FilterbankCCAFilter(FilterbankCCA):
                 fb_weight__a=self.fb_weight__a,
                 fb_weight__b=self.fb_weight__b
             )
+        )
+
+
+class StandardCCAFilter(StandardCCA):
+
+    def __init__(
+        self,
+        electrodes_name=[],
+        start_time_idx=0,
+        stop_time_idx=1500,
+        fit_start_time_idx=None,
+        fit_stop_time_idx=None,
+        num_harmonics=5,
+    ) -> None:
+        
+        self.fit_start_time_idx = fit_start_time_idx
+        self.fit_stop_time_idx = fit_stop_time_idx
+        super().__init__(
+            electrodes_name,
+            start_time_idx,
+            stop_time_idx,
+            num_harmonics
+        )
+
+    def initialize_pipeline(self) -> None:
+        self.pipeline = (
+            ElectrodesFilter(self.electrodes_index),
+            TimeFilter(
+                start_time_idx=self.start_time_idx,
+                stop_time_idx=self.stop_time_idx,
+                fit_start_time_idx=self.fit_start_time_idx,
+                fit_stop_time_idx=self.fit_stop_time_idx,
+            ),
+            DummyProjector(),
+            CCAModeFilter(
+                num_components=self.num_components,
+                num_harmonics=self.num_harmonics
+            ),
+            Squeeze()
+        )
+
+
+class FilterbankCCAFilter(FilterbankCCA):
+
+    def __init__(
+        self,
+        electrodes_name=[],
+        start_time_idx=0,
+        stop_time_idx=1500,
+        fit_start_time_idx=None,
+        fit_stop_time_idx=None,
+        num_harmonics=5,
+        fb_num_subband=3,
+        fb_fundamental_freq=8,
+        fb_upper_bound_freq=88,
+        fb_weight__a=1.25,
+        fb_weight__b=0.25,
+    ) -> None:
+        
+        self.fit_start_time_idx = fit_start_time_idx
+        self.fit_stop_time_idx = fit_stop_time_idx
+        super().__init__(
+            electrodes_name=electrodes_name,
+            start_time_idx=start_time_idx,
+            stop_time_idx=stop_time_idx,
+            num_harmonics=num_harmonics,
+            fb_num_subband=fb_num_subband,
+            fb_fundamental_freq=fb_fundamental_freq,
+            fb_upper_bound_freq=fb_upper_bound_freq,
+            fb_weight__a=fb_weight__a,
+            fb_weight__b=fb_weight__b,
+        )
+
+    def initialize_pipeline(self):
+        self.pipeline = (
+            ElectrodesFilter(self.electrodes_index),
+            TimeFilter(
+                start_time_idx=self.start_time_idx,
+                stop_time_idx=self.stop_time_idx,
+                fit_start_time_idx=self.fit_start_time_idx,
+                fit_stop_time_idx=self.fit_stop_time_idx,
+            ),
+            FilterbankProjector(
+                fb_num_subband=self.fb_num_subband,
+                fb_fundamental_freq=self.fb_fundamental_freq,
+                fb_upper_bound_freq=self.fb_upper_bound_freq,
+            ),
+            CCAModeFilter(
+                num_components=self.num_components,
+                num_harmonics=self.num_harmonics
+            ),
+            Squeeze(),
+            FilterBankPredictProba(
+                fb_num_subband=self.fb_num_subband,
+                fb_weight__a=self.fb_weight__a,
+                fb_weight__b=self.fb_weight__b
+            )
+        )
+
+
+class SpatioTemporalCCAFilter(SpatioTemporalCCA):
+
+    def __init__(
+        self,
+        electrodes_name=[],
+        start_time_idx=0,
+        stop_time_idx=1500,
+        fit_start_time_idx=None,
+        fit_stop_time_idx=None,
+        num_harmonics=5,
+        window_gap=0,
+        window_length=5
+    ) -> None:
+        
+        self.fit_start_time_idx = fit_start_time_idx
+        self.fit_stop_time_idx = fit_stop_time_idx
+        super().__init__(
+            electrodes_name=electrodes_name,
+            start_time_idx=start_time_idx,
+            stop_time_idx=stop_time_idx,
+            num_harmonics=num_harmonics,
+            window_gap=window_gap,
+            window_length=window_length
+        )
+
+
+    def initialize_pipeline(self):
+        self.pipeline = (
+            ElectrodesFilter(self.electrodes_index),
+            TimeFilter(
+                start_time_idx=None,
+                stop_time_idx=self.stop_time_idx,
+                fit_start_time_idx=None,
+                fit_stop_time_idx=self.fit_stop_time_idx
+            ),
+            SpatioTemporalBank(window_gap=self.window_gap, window_length = self.window_length),
+            TimeFilter(
+                start_time_idx=max([self.window_gap + self.window_length, self.start_time_idx]),
+                stop_time_idx=None,
+                fit_start_time_idx=max([self.window_gap + self.window_length, self.fit_start_time_idx or self.start_time_idx]),
+                fit_stop_time_idx=None,
+            ),
+            DummyProjector(),
+            CCAModeCorrelation(
+                num_components=self.num_components,
+                num_harmonics=self.num_harmonics,
+
+            ),
+            Squeeze()
         )
