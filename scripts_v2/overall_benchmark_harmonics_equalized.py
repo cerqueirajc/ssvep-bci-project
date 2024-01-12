@@ -1,8 +1,8 @@
 import ssvepcca.pipelines as pipelines
 import ssvepcca.learners as learners
-import ssvepcca.parameters as parameters
+from ssvepcca import parameters
 
-from scripts_new.configurations import (
+from scripts_v2.configurations import (
     RunParams, run_exector
 )
 

@@ -163,3 +163,4 @@ cython_debug/
 dataset/**
 **predict_proba**
 .vscode
+results/**

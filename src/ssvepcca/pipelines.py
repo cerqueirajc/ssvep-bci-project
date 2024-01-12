@@ -1,5 +1,4 @@
 import os
-import time
 import numpy as np
 import toolz as fp
 
@@ -8,12 +7,11 @@ from .utils import check_input_data, eval_accuracy, load_mat_data_array
 from .transformers import EEGType
 from .algorithms import SSVEPAlgorithm
 
-
 @fp.curry
 def k_fold_predict(data: np.ndarray, learner: SSVEPAlgorithm):
     """
-    leave_one_out_predict
-    ------------
+    k_fold_predict
+
     This function is a pipeline to be used with learners that needs training data. The proposed method is to fit
     the model with k-1 folds and predict the fold that was left out. This function is hardcoded to use NUM_BLOCKS
     as the number of folds (k=NUM_BLOCKS).
@@ -32,7 +30,7 @@ def k_fold_predict(data: np.ndarray, learner: SSVEPAlgorithm):
         train_data_raw = data[train_masks[block], :, :, :]
         valid_data_raw = data[valid_masks[block], :, :, :].squeeze()
         learner.fit(EEGType(train_data_raw, 0, rc.num_samples))
-        
+
         for target in range(rc.num_targets):
 
             valid_data = EEGType(valid_data_raw[target, :, :], 0, rc.num_samples)
@@ -48,7 +46,7 @@ def k_fold_predict(data: np.ndarray, learner: SSVEPAlgorithm):
 def test_fit_predict(data: np.ndarray, learner: SSVEPAlgorithm):
     """
     test_fit_predict
-    ----------
+
     This function is a pipeline to be used with learners that don't need training data (unsupervised) and, therefore,
     are fitted using the test data only. For example, classical CCA algorithm is applied to train data only.
     """
@@ -59,14 +57,14 @@ def test_fit_predict(data: np.ndarray, learner: SSVEPAlgorithm):
     predict_proba_list = []
 
     for block in range(rc.num_blocks):
-        
+
         predict_proba_list.append([])
-        
+
         for target in range(rc.num_targets):
-            
+
             score_data = EEGType(data[block, target, :, :], 0, rc.num_samples)
             prediction, predict_proba = learner(score_data)
-            
+
             predictions[block, target] = prediction
             predict_proba_list[block].append(predict_proba)
 

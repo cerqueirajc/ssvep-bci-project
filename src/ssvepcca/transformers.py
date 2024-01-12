@@ -277,7 +277,7 @@ class CCAModeFilter(CCABase, Transformer):
 
     def __call__(self, eeg: EEGType) -> CorrelationType:
 
-        num_projections = eeg.data.shape[1]
+        num_projections = eeg.data.shape[0]
         correlations = np.empty([rc.num_targets, num_projections, self.num_components])
 
         for target, freq in enumerate(rc.target_frequencies):

@@ -2,7 +2,7 @@ import ssvepcca.pipelines as pipelines
 import ssvepcca.learners as learners
 import ssvepcca.parameters as parameters
 
-from scripts_new.configurations import (
+from scripts_v2.configurations import (
     START_TIME_INDEX, STOP_TIME_INDEX,
     RunParams, run_exector
 )
