@@ -15,6 +15,7 @@ setup(
         "scipy",
         "scikit-learn",
         "pandas",
-        "toolz"
+        "toolz",
+        "pyyaml"
     ],
 )

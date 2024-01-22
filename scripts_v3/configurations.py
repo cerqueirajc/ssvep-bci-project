@@ -1,17 +1,19 @@
-from typing import Callable, Tuple
+from typing import Tuple
 from toolz import merge
-from dataclasses import dataclass
-import numpy as np
 
 from ssvepcca import parameters
 from ssvepcca.pipelines import test_fit_predict, k_fold_predict
 from ssvepcca.algorithms import (
-    SSVEPAlgorithm, StandardCCA, FilterbankCCA,
+    StandardCCA, FilterbankCCA,
     SpatioTemporalCCA, FBSpatioTemporalCCA, StandardCCAFilter,
     FilterbankCCAFilter, SpatioTemporalCCAFilter,
     FBSpatioTemporalCCAFilter
 )
 
+from routine import ExperimentParams
+
+
+# Constants
 
 PARAMS_CCA_SINGLE_COMPONENT = {
     "electrodes_name": parameters.electrode_list_fbcca,
@@ -21,7 +23,7 @@ PARAMS_CCA_SINGLE_COMPONENT = {
 PARAMS_SPATIO_TEMPORAL_CCA_DEFAULT = merge(
     PARAMS_CCA_SINGLE_COMPONENT,
     {
-        "window_gap": 3,
+        "window_gap": 2,
         "window_length": 1,
     }
 )
@@ -30,7 +32,7 @@ PARAMS_FIR_CCA_DEFAULT = merge(
     PARAMS_CCA_SINGLE_COMPONENT,
     {
         "window_gap": 0,
-        "window_length": 5,
+        "window_length": 4,
     }
 )
 
@@ -55,42 +57,41 @@ PARAMS_FB_FIR_CCA_DEFAULT = merge(
     PARAMS_FILTERBANK_CCA
 )
 
+SS_CCA_WINDOW_GAP_LIST = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 15, 20, 25, 30]
+SS_WINDOW_LENGTH = 1
+
+FIR_CCA_WINDOW_GAP = 0
+FIR_CCA_WINDOW_LENGTH_LIST = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 20, 30, 40]
+
+FIR_GRIDSEARCH_GAP    = [1, 2, 3, 4, 5]
+FIR_GRIDSEARCH_LENGTH = [2, 3, 4, 5, 6, 7, 8, 9, 10]
+
+# Functions
+
 def ss_fir_params_str(window_gap, window_length):
     return f"G{window_gap}__L{window_length}"
 
 
-@dataclass
-class ExperimentParams:
-    """Class for keeping experiment parameters"""
-    algorithm: SSVEPAlgorithm
-    pipeline_function: Callable
-    kwargs: dict
-    name: str
-
-    def __str__(self):
-        return f"{self.algorithm.__name__}/{self.name}"
-
+# Experiment params
 
 experiments_correlation: Tuple[ExperimentParams, ...] = (
     ExperimentParams(StandardCCA, test_fit_predict, PARAMS_CCA_SINGLE_COMPONENT, "default"),
-    ExperimentParams(SpatioTemporalCCA, test_fit_predict, PARAMS_SPATIO_TEMPORAL_CCA_DEFAULT, "default"),
-    ExperimentParams(SpatioTemporalCCA, test_fit_predict, PARAMS_FIR_CCA_DEFAULT, "default"),
+    ExperimentParams(SpatioTemporalCCA, test_fit_predict, PARAMS_SPATIO_TEMPORAL_CCA_DEFAULT, "default_ss_cca"),
+    ExperimentParams(SpatioTemporalCCA, test_fit_predict, PARAMS_FIR_CCA_DEFAULT, "default_fir_cca"),
     ExperimentParams(FilterbankCCA, test_fit_predict, PARAMS_FILTERBANK_CCA, "default"),
-    ExperimentParams(FBSpatioTemporalCCA, test_fit_predict, PARAMS_FB_SS_CCA_DEFAULT, "default"),
+    ExperimentParams(FBSpatioTemporalCCA, test_fit_predict, PARAMS_FB_SS_CCA_DEFAULT, "default_ss_cca"),
+    ExperimentParams(FBSpatioTemporalCCA, test_fit_predict, PARAMS_FB_FIR_CCA_DEFAULT, "default_fir_fb_cca"),
 )
 
 
 experiments_filter: Tuple[ExperimentParams, ...] = (
     ExperimentParams(StandardCCAFilter, k_fold_predict, PARAMS_CCA_SINGLE_COMPONENT, "default"),
-    ExperimentParams(SpatioTemporalCCAFilter, k_fold_predict, PARAMS_SPATIO_TEMPORAL_CCA_DEFAULT, "default"),
-    ExperimentParams(SpatioTemporalCCAFilter, k_fold_predict, PARAMS_FIR_CCA_DEFAULT, "default"),
+    ExperimentParams(SpatioTemporalCCAFilter, k_fold_predict, PARAMS_SPATIO_TEMPORAL_CCA_DEFAULT, "default_ss_cca"),
+    ExperimentParams(SpatioTemporalCCAFilter, k_fold_predict, PARAMS_FIR_CCA_DEFAULT, "default_fir_cca"),
     ExperimentParams(FilterbankCCAFilter, k_fold_predict, PARAMS_FILTERBANK_CCA, "default"),
-    ExperimentParams(FBSpatioTemporalCCAFilter, k_fold_predict, PARAMS_FB_SS_CCA_DEFAULT, "default")
+    ExperimentParams(FBSpatioTemporalCCAFilter, k_fold_predict, PARAMS_FB_SS_CCA_DEFAULT, "default_fb_ss_cca"),
+    ExperimentParams(FBSpatioTemporalCCAFilter, k_fold_predict, PARAMS_FB_FIR_CCA_DEFAULT, "default_fb_fir_cca"),
 )
-
-
-SS_CCA_WINDOW_GAP_LIST = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 15, 20, 25, 30]
-SS_WINDOW_LENGTH = 1
 
 experiment_ss_hp_tuning_correlation: Tuple[ExperimentParams, ...] = tuple(
     ExperimentParams(
@@ -118,10 +119,6 @@ experiment_ss_hp_tuning_filter: Tuple[ExperimentParams, ...] = tuple(
     for window_gap in SS_CCA_WINDOW_GAP_LIST
 )   
 
-
-FIR_CCA_WINDOW_GAP = 0
-FIR_CCA_WINDOW_LENGTH_LIST = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 20, 30, 40]
-
 experiment_fir_hp_tuning_correlation: Tuple[ExperimentParams, ...] = tuple(
     ExperimentParams(
         SpatioTemporalCCA,
@@ -147,10 +144,6 @@ experiment_fir_hp_tuning_filter: Tuple[ExperimentParams, ...] = tuple(
     )
     for window_length in FIR_CCA_WINDOW_LENGTH_LIST
 )
-
-
-FIR_GRIDSEARCH_GAP    = [1, 2, 3, 4, 5]
-FIR_GRIDSEARCH_LENGTH = [2, 3, 4, 5, 6, 7, 8, 9, 10]
 
 experiment_fir_gridsearch_correlation: Tuple[ExperimentParams, ...] = tuple(
     ExperimentParams(
@@ -179,8 +172,6 @@ experiment_fir_gridsearch_filter: Tuple[ExperimentParams, ...] = tuple(
     for window_gap in FIR_GRIDSEARCH_GAP
     for window_length in FIR_GRIDSEARCH_LENGTH
 )
-
-
 
 
 if __name__ == "__main__":
