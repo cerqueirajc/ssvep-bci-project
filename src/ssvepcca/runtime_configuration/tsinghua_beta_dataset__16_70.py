@@ -2,7 +2,7 @@ PARAMS = {
     "num_subjects": 55,
     "num_blocks": 4,
     "num_targets": 40,
-    "num_samples": 750,
+    "num_samples": 1000,
     "num_electrodes": 64,
     "sample_frequency": 250,
     "subjects": [f"S{i + 1}" for i in range(15, 70)],
