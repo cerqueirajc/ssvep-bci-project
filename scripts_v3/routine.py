@@ -5,7 +5,6 @@ from dataclasses import dataclass
 from toolz import merge
 
 import ssvepcca
-from ssvepcca.utils import load_mat_data_array
 from ssvepcca.algorithms import SSVEPAlgorithm
 
 
@@ -50,7 +49,8 @@ def run_experiment(
     experiment_params: ExperimentParams,
     time_window_params: TimeWindowParams,
     dataset_root_path: str,
-    output_root_folder: str
+    output_root_folder: str,
+    load_function: Callable[[str], np.array]
 ):
 
     full_kwargs = merge(experiment_params.kwargs, time_window_params.get_params_dict())
@@ -59,13 +59,13 @@ def run_experiment(
     output_experiment_folder = f"{output_root_folder}/{str(experiment_params)}/{str(time_window_params)}"
     print(f"    -Executing experiment: {output_experiment_folder}")
 
-    for subject in range(1, ssvepcca.runtime_configuration.num_subjects + 1):
-        print(f"        -Subject: S{subject}")
+    for subject in ssvepcca.runtime_configuration.subjects:
+        print(f"        -Subject: {subject}")
 
-        data_path = f"{dataset_root_path}/S{subject}.mat"
-        output_path = f"{output_experiment_folder}/S{subject}/"
+        data_path = f"{dataset_root_path}/{subject}.mat"
+        output_path = f"{output_experiment_folder}/{subject}/"
 
-        dataset = load_mat_data_array(data_path)
+        dataset = load_function(data_path)
         predictions, predict_proba, accuracy = experiment_params.pipeline_function(dataset, ssvep_algorithm)
 
         os.makedirs(output_path, exist_ok=True)

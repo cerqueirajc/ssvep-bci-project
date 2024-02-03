@@ -1,4 +1,5 @@
 import ssvepcca
+from ssvepcca.utils import load_mat_data_array
 
 from configurations import experiment_ss_hp_tuning_correlation, experiment_ss_hp_tuning_filter
 from routine import TimeWindowParams, run_experiment
@@ -19,5 +20,6 @@ if __name__ == "__main__":
             experiment_parameter,
             time_window_parameters,
             DATASET_ROOT_PATH,
-            OUTPUT_ROOT_FOLDER
+            OUTPUT_ROOT_FOLDER,
+            load_mat_data_array
         )

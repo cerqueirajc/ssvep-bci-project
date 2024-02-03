@@ -4,6 +4,7 @@ PARAMS = {
     "num_targets": 40,
     "num_samples": 1500,
     "num_electrodes": 64,
+    "subjects": [f"S{i + 1}" for i in range(35)],
     "sample_frequency": 250,
     "target_frequencies": [
         8.0,

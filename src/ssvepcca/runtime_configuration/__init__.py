@@ -27,11 +27,13 @@ class RuntimeConfiguration(metaclass=SingletonMeta):
         self.num_targets = config["num_targets"]
         self.num_samples = config["num_samples"]
         self.num_electrodes = config["num_electrodes"]
+        self.subjects = config["subjects"]
         self.sample_frequency = config["sample_frequency"]
         self.target_frequencies = config["target_frequencies"]
         self.target_phases = config["target_phases"]
         self.electrodes = config["electrodes"]
 
+        assert len(self.subjects) == self.num_subjects
         assert len(self.target_frequencies) == self.num_targets
         assert len(self.target_phases) == self.num_targets
         assert len(self.electrodes) == self.num_electrodes
@@ -47,6 +49,12 @@ class RuntimeConfiguration(metaclass=SingletonMeta):
         if config_name == "tsinghua-bci-lab":
             from .tsinghua_bci_lab import PARAMS as tsinghua_bci_lab_params
             self.load_config(tsinghua_bci_lab_params)
+        elif config_name == "tsinghua-beta-dataset-01-15":
+            from .tsinghua_beta_dataset__01_15 import PARAMS as tsinghua_beta_dataset__01_15_params
+            self.load_config(tsinghua_beta_dataset__01_15_params)
+        elif config_name == "tsinghua-beta-dataset-16-70":
+            from .tsinghua_beta_dataset__16_70 import PARAMS as tsinghua_beta_dataset__16_70_params
+            self.load_config(tsinghua_beta_dataset__16_70_params)
         else:
             raise AttributeError(f"Attribute {config_name} could not be found.")
         
