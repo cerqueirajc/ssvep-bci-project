@@ -11,8 +11,10 @@ if __name__ == "__main__":
 
     ssvepcca.runtime_configuration.load_from_name("tsinghua-beta-dataset-01-15")
 
-    DATASET_ROOT_PATH = "/media/cerqueirajc/windows_heavy_data/Ubuntu/masters/dataset/tsinghua_beta_dataset"
-    OUTPUT_ROOT_FOLDER = "results/tsinghua_beta_dataset"
+    #DATASET_ROOT_PATH = "/media/cerqueirajc/windows_heavy_data/Ubuntu/masters/dataset/tsinghua_beta_dataset"
+    DATASET_ROOT_PATH = "/mnt/mystorage/tsinghua_beta_dataset"
+    #OUTPUT_ROOT_FOLDER = "results/tsinghua_beta_dataset"
+    OUTPUT_ROOT_FOLDER = "/mnt/mystorage/results/tsinghua_beta_dataset" 
 
     time_window_end_values = [250, 375, 500, 625, 750]
 
