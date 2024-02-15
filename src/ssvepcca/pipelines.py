@@ -1,9 +1,10 @@
 import os
 import numpy as np
 import toolz as fp
+from typing import Optional
 
 from . import runtime_configuration as rc
-from .utils import check_input_data, eval_accuracy, load_mat_data_array
+from .utils import check_input_data, eval_accuracy, load_mat_data_array, cycled_sliding_window
 from .transformers import EEGType
 from .algorithms import SSVEPAlgorithm
 
@@ -37,6 +38,49 @@ def k_fold_predict(data: np.ndarray, learner: SSVEPAlgorithm):
             prediction, predict_proba = learner(valid_data)
 
             predictions[block, target] = prediction
+            predict_proba_list.append(predict_proba)
+
+    return predictions, np.array(predict_proba_list), eval_accuracy(predictions)
+
+
+@fp.curry
+def k_fold_predict_alt(data: np.ndarray, learner: SSVEPAlgorithm, train_num_blocks: Optional[int] = None):
+    """
+    k_fold_predict_alt
+
+    This function is a pipeline to be used with learners that needs training data. The proposed method is to fit
+    the model with k-1 folds and predict the fold that was left out. This function uses k = train_num_blocks
+    as the number of folds, but for each iteration the subset of folds change.
+    """
+
+    check_input_data(data)
+
+    if train_num_blocks and train_num_blocks >= rc.num_blocks:
+            raise ValueError("Value of train_num_blocks should be smaller than rc.num_blocks")
+
+    train_num_blocks = train_num_blocks or rc.num_blocks - 1
+    train_valid_masks = cycled_sliding_window(range(rc.num_blocks), train_num_blocks + 1)
+
+    predictions = np.empty([rc.num_blocks, rc.num_targets])
+    predict_proba_list = []
+
+    for _ in range(rc.num_blocks):
+        mask = next(train_valid_masks)
+        valid_block = mask[-1] # last item is the current validation block
+        train_blocks = mask[:-1] # all itens but last one are used to train the algo
+        # print("Valid block: ", valid_block, ", train blocks: ", train_blocks)
+        
+        valid_data_raw = data[valid_block, :, :, :]
+        train_data_raw = data[train_blocks, :, :, :]
+        
+        learner.fit(EEGType(train_data_raw, 0, rc.num_samples))
+
+        for target in range(rc.num_targets):
+
+            valid_data = EEGType(valid_data_raw[target, :, :], 0, rc.num_samples)
+            prediction, predict_proba = learner(valid_data)
+
+            predictions[valid_block, target] = prediction
             predict_proba_list.append(predict_proba)
 
     return predictions, np.array(predict_proba_list), eval_accuracy(predictions)

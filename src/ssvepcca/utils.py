@@ -1,8 +1,11 @@
+import itertools
+import collections
 import numpy as np
 import pandas as pd
 import scipy
 from functools import cache
 from typing import Dict, List
+
 from . import runtime_configuration as rc
 
 
@@ -105,3 +108,13 @@ def shift_time_dimension(arr: np.ndarray, num: int) -> np.ndarray:
     elif num > 0:
         arr[..., :num, :] = np.nan
     return arr
+
+
+def cycled_sliding_window(list_or_iterable, n):
+    "Collect data into overlapping fixed-length chunks or blocks."
+    # sliding_window('ABCDEFG', 4) --> ABCD BCDE CDEF DEFG
+    it = itertools.cycle(list_or_iterable)
+    window = collections.deque(itertools.islice(it, n-1), maxlen=n)
+    for x in it:
+        window.append(x)
+        yield tuple(window)

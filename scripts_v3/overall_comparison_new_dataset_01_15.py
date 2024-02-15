@@ -18,15 +18,15 @@ if __name__ == "__main__":
 
     time_window_end_values = [250, 375, 500, 625, 750]
 
-    time_window_parameters = [
-        TimeWindowParams(125, time_window_end, None, None)
-        for time_window_end in time_window_end_values
-    ]
-
-    # time_window_parameters_full_data = [
-    #     TimeWindowParams(125, time_window_end, 125, 1375)
+    # time_window_parameters = [
+    #     TimeWindowParams(125, time_window_end, None, None)
     #     for time_window_end in time_window_end_values
     # ]
+
+    time_window_parameters_full_data = [
+        TimeWindowParams(125, time_window_end, 125, 1375)
+        for time_window_end in time_window_end_values
+    ]
 
     def load_mat_data_array_new(mat_path: str) -> np.ndarray:
         mat = scipy.io.loadmat(mat_path)
@@ -34,7 +34,7 @@ if __name__ == "__main__":
 
     print(f"Running correlation algos:")
     for experiment_parameter in experiments_correlation:
-        for time_window_params in time_window_parameters:
+        for time_window_params in time_window_parameters_full_data:
             run_experiment(
                 experiment_parameter,
                 time_window_params,
@@ -45,7 +45,7 @@ if __name__ == "__main__":
 
     print(f"Running filter algos:")
     for experiment_parameter in experiments_filter:
-        for time_window_params in time_window_parameters:
+        for time_window_params in time_window_parameters_full_data:
             run_experiment(
                 experiment_parameter,
                 time_window_params,
