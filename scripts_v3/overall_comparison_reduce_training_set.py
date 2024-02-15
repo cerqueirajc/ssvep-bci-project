@@ -8,10 +8,10 @@ from routine import TimeWindowParams, run_experiment
 if __name__ == "__main__":
 
     ssvepcca.runtime_configuration.load_from_name("tsinghua-bci-lab")
-    DATASET_ROOT_PATH = "/media/cerqueirajc/windows_heavy_data/Ubuntu/masters/dataset/tsinghua_bci_lab"
-    OUTPUT_ROOT_FOLDER = "results/tsinghua_bci_lab"
-    # DATASET_ROOT_PATH = "/mnt/mystorage/tsinghua_bci_lab"
-    # OUTPUT_ROOT_FOLDER = "/mnt/mystorage/results/tsinghua_bci_lab" 
+    # DATASET_ROOT_PATH = "/media/cerqueirajc/windows_heavy_data/Ubuntu/masters/dataset/tsinghua_bci_lab"
+    # OUTPUT_ROOT_FOLDER = "results/tsinghua_bci_lab"
+    DATASET_ROOT_PATH = "/mnt/mystorage/tsinghua_bci_lab"
+    OUTPUT_ROOT_FOLDER = "/mnt/mystorage/results/tsinghua_bci_lab" 
 
     time_window_end_values = [250, 375, 500, 625, 750, 875, 1000, 1125, 1250, 1375]
 

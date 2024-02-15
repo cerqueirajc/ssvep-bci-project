@@ -16,7 +16,7 @@ if __name__ == "__main__":
     #OUTPUT_ROOT_FOLDER = "results/tsinghua_beta_dataset"
     OUTPUT_ROOT_FOLDER = "/mnt/mystorage/results/tsinghua_beta_dataset" 
 
-    time_window_end_values = [250, 375, 500, 625, 750]
+    time_window_end_values = [250, 375, 500, 625]
 
     # time_window_parameters = [
     #     TimeWindowParams(125, time_window_end, None, None)
@@ -24,7 +24,7 @@ if __name__ == "__main__":
     # ]
 
     time_window_parameters_full_data = [
-        TimeWindowParams(125, time_window_end, 125, 1375)
+        TimeWindowParams(125, time_window_end, 125, 625)
         for time_window_end in time_window_end_values
     ]
 
