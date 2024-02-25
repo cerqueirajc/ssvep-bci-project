@@ -12,16 +12,32 @@ if __name__ == "__main__":
     ssvepcca.runtime_configuration.load_from_name("tsinghua-beta-dataset-16-70")
 
     #DATASET_ROOT_PATH = "/media/cerqueirajc/windows_heavy_data/Ubuntu/masters/dataset/tsinghua_beta_dataset"
-    DATASET_ROOT_PATH = "/mnt/mystorage/tsinghua_beta_dataset"
     #OUTPUT_ROOT_FOLDER = "results/tsinghua_beta_dataset"
-    OUTPUT_ROOT_FOLDER = "/mnt/mystorage/results/tsinghua_beta_dataset" 
+    DATASET_ROOT_PATH = "/mnt/mystorage/tsinghua_beta_dataset"
+    OUTPUT_ROOT_FOLDER = "/mnt/mystorage/results_final/tsinghua_beta_dataset" 
 
-    time_window_end_values = [250, 375, 500, 625, 750, 875]
+    time_window_end_values = [
+        175,
+        225,
+        275,
+        325,
+        375,
+        425,
+        475,
+        525,
+        575,
+        625,
+        675,
+        725,
+        775,
+        825,
+        875,
+    ]
 
-    # time_window_parameters = [
-    #     TimeWindowParams(125, time_window_end, None, None)
-    #     for time_window_end in time_window_end_values
-    # ]
+    time_window_parameters = [
+        TimeWindowParams(125, time_window_end, None, None)
+        for time_window_end in time_window_end_values
+    ]
 
     time_window_parameters_full_data = [
         TimeWindowParams(125, time_window_end, 125, 875)
@@ -34,7 +50,7 @@ if __name__ == "__main__":
 
     print(f"Running correlation algos:")
     for experiment_parameter in experiments_correlation:
-        for time_window_params in time_window_parameters_full_data:
+        for time_window_params in time_window_parameters:
             run_experiment(
                 experiment_parameter,
                 time_window_params,
@@ -45,7 +61,7 @@ if __name__ == "__main__":
 
     print(f"Running filter algos:")
     for experiment_parameter in experiments_filter:
-        for time_window_params in time_window_parameters_full_data:
+        for time_window_params in time_window_parameters + time_window_parameters_full_data:
             run_experiment(
                 experiment_parameter,
                 time_window_params,
