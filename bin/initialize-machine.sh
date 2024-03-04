@@ -15,4 +15,4 @@ git clone https://github.com/cerqueirajc/ssvep-bci-project.git
 pip install -e ssvep-bci-project
 
 # donwload tsinghua experiment files
-apt install p7zip-full
+sudo apt install p7zip-full
