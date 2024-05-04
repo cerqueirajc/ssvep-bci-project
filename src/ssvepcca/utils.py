@@ -1,8 +1,11 @@
+import itertools
+import collections
 import numpy as np
 import pandas as pd
 import scipy
 from functools import cache
 from typing import Dict, List
+
 from . import runtime_configuration as rc
 
 
@@ -93,3 +96,25 @@ def shift_first_dim(arr: np.ndarray, num: int) -> np.ndarray:
         arr[:num, ...] = np.nan
     return arr
 
+
+def shift_time_dimension(arr: np.ndarray, num: int) -> np.ndarray:
+    """
+    Shifts the values of a tensor of time series, assuming the -2 dimension is the time index.
+    """
+
+    arr=np.roll(arr, num, axis=-2)
+    if num < 0:
+        arr[..., -num:, :] = np.nan
+    elif num > 0:
+        arr[..., :num, :] = np.nan
+    return arr
+
+
+def cycled_sliding_window(list_or_iterable, n):
+    "Collect data into overlapping fixed-length chunks or blocks."
+    # sliding_window('ABCDEFG', 4) --> ABCD BCDE CDEF DEFG
+    it = itertools.cycle(list_or_iterable)
+    window = collections.deque(itertools.islice(it, n-1), maxlen=n)
+    for x in it:
+        window.append(x)
+        yield tuple(window)
