@@ -9,5 +9,5 @@ wait
 
 for i in $(seq 1 35)
 do
- 7z x "S$i.mat.7z" -o/mnt/mystorage/tsinghua_bci_lab
+ 7z x "/mnt/mystorage/tsinghua_bci_lab/S$i.mat.7z" -o/mnt/mystorage/tsinghua_bci_lab
 done
