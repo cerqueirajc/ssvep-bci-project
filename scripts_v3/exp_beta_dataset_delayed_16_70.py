@@ -17,7 +17,7 @@ if __name__ == "__main__":
     rc.load_from_name("tsinghua-beta-dataset-16-70")
 
     DATASET_ROOT_PATH = "/mnt/mystorage/tsinghua_beta_dataset"
-    OUTPUT_ROOT_FOLDER = "/mnt/mystorage/results_final/tsinghua_beta_dataset" 
+    OUTPUT_ROOT_FOLDER = "/mnt/mystorage/results_delayed/tsinghua_beta_dataset" 
 
     stimulus_offset_seconds = 0.5
     visual_latency_seconds  = 0.13
