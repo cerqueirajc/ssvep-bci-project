@@ -41,7 +41,7 @@ class CCALearner(CCA):
         if n_components is None or n_components > self.n_components:
             n_components = self.n_components
 
-        x_projection, y_projection = self.transform(X=X, Y=Y)
+        x_projection, y_projection = self.transform(X=X, y=Y)
 
         return [
             scipy.stats.pearsonr(x_projection[:,n], y_projection[:,n]).statistic
