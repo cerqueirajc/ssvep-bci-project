@@ -1,7 +1,7 @@
 import ssvepcca
 from ssvepcca.utils import load_mat_data_array
 
-from configurations import experiments_filter_short_training
+from configurations import experiments_filter_short_training_3
 from routine import TimeWindowParams, run_experiment
 
 
@@ -26,7 +26,7 @@ if __name__ == "__main__":
     ]
 
     print(f"Running filter algos:")
-    for experiment_parameter in experiments_filter_short_training:
+    for experiment_parameter in experiments_filter_short_training_3:
         for time_window_params in time_window_parameters + time_window_parameters_full_data:
             run_experiment(
                 experiment_parameter,
