@@ -63,7 +63,7 @@ if __name__ == "__main__":
     print(f"Running filter algos:")
     for experiment_parameter in experiments_filter:
         for time_window_params in time_window_parameters + time_window_parameters_full_data:
-            run_experiment_arglist((
+            run_experiment_arglist.append((
                 experiment_parameter,
                 time_window_params,
                 DATASET_ROOT_PATH,
