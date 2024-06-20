@@ -1,23 +1,27 @@
+import scipy
 import numpy as np
 from multiprocessing import Pool
 
-
 from ssvepcca import runtime_configuration as rc
-from ssvepcca.utils import load_mat_data_array
 
-from configurations import experiments_correlation, experiments_filter, experiments_filter_short_training_1, experiments_filter_short_training_3
+from configurations import experiments_correlation, experiments_filter
 from routine import TimeWindowParams, run_experiment
+
+
+def load_mat_data_array_new(mat_path: str) -> np.ndarray:
+    mat = scipy.io.loadmat(mat_path)
+    return mat["data"][0][0][0].astype(float).T.transpose([1, 0, 2, 3])
 
 
 if __name__ == "__main__":
 
-    rc.load_from_name("tsinghua-bci-lab")
+    rc.load_from_name("tsinghua-beta-dataset-16-70")
 
-    DATASET_ROOT_PATH = "/mnt/mystorage/tsinghua_bci_lab"
-    OUTPUT_ROOT_FOLDER = "/mnt/mystorage/results_delayed/tsinghua_bci_lab" 
+    DATASET_ROOT_PATH = "/mnt/mystorage/tsinghua_beta_dataset"
+    OUTPUT_ROOT_FOLDER = "/mnt/mystorage/results_delayed/tsinghua_beta_dataset" 
 
     stimulus_offset_seconds = 0.5
-    visual_latency_seconds  = 0.14
+    visual_latency_seconds  = 0.13
     step_size_seconds       = 0.2
 
     initial_time_value = (stimulus_offset_seconds + visual_latency_seconds) * rc.sample_frequency
@@ -53,19 +57,19 @@ if __name__ == "__main__":
                 time_window_params,
                 DATASET_ROOT_PATH,
                 OUTPUT_ROOT_FOLDER,
-                load_mat_data_array
+                load_mat_data_array_new
             ))
 
     print(f"Running filter algos:")
-    for experiment_parameter in experiments_filter + experiments_filter_short_training_1 + experiments_filter_short_training_3:
+    for experiment_parameter in experiments_filter:
         for time_window_params in time_window_parameters + time_window_parameters_full_data:
             run_experiment_arglist.append((
                 experiment_parameter,
                 time_window_params,
                 DATASET_ROOT_PATH,
                 OUTPUT_ROOT_FOLDER,
-                load_mat_data_array
+                load_mat_data_array_new
             ))
-    
+
     with Pool(3) as p:
         p.starmap(run_experiment, run_experiment_arglist)
