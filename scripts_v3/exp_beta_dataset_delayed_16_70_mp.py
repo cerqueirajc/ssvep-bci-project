@@ -4,7 +4,7 @@ from multiprocessing import Pool
 
 from ssvepcca import runtime_configuration as rc
 
-from configurations import experiments_correlation, experiments_filter
+from configurations import experiments_correlation, experiments_filter, experiments_new_cca_multiclass
 from routine import TimeWindowParams, run_experiment
 
 
@@ -49,19 +49,20 @@ if __name__ == "__main__":
 
     run_experiment_arglist = []
 
-    print(f"Running correlation algos:")
-    for experiment_parameter in experiments_correlation:
-        for time_window_params in time_window_parameters:
-            run_experiment_arglist.append((
-                experiment_parameter,
-                time_window_params,
-                DATASET_ROOT_PATH,
-                OUTPUT_ROOT_FOLDER,
-                load_mat_data_array_new
-            ))
+    # print(f"Running correlation algos:")
+    # for experiment_parameter in experiments_correlation:
+    #     for time_window_params in time_window_parameters:
+    #         run_experiment_arglist.append((
+    #             experiment_parameter,
+    #             time_window_params,
+    #             DATASET_ROOT_PATH,
+    #             OUTPUT_ROOT_FOLDER,
+    #             load_mat_data_array_new
+    #         ))
 
     print(f"Running filter algos:")
-    for experiment_parameter in experiments_filter:
+    # for experiment_parameter in experiments_filter + experiments_new_cca_multiclass:
+    for experiment_parameter in experiments_new_cca_multiclass:
         for time_window_params in time_window_parameters + time_window_parameters_full_data:
             run_experiment_arglist.append((
                 experiment_parameter,
