@@ -4,10 +4,10 @@ from toolz import merge
 from ssvepcca import parameters
 from ssvepcca.pipelines import test_fit_predict, k_fold_predict, k_fold_predict_alt
 from ssvepcca.algorithms import (
-    StandardCCA, FilterbankCCA,
+    FilterbankCCAMulticlass, SpatioTemporalCCAMulticlass, StandardCCA, FilterbankCCA,
     SpatioTemporalCCA, FBSpatioTemporalCCA, StandardCCAFilter,
     FilterbankCCAFilter, SpatioTemporalCCAFilter,
-    FBSpatioTemporalCCAFilter
+    FBSpatioTemporalCCAFilter, StandardCCAMulticlass
 )
 
 from routine import ExperimentParams
@@ -111,6 +111,13 @@ experiments_filter_short_training_1: Tuple[ExperimentParams, ...] = (
     ExperimentParams(FilterbankCCAFilter, kfold_1_blocks, PARAMS_FILTERBANK_CCA, "default__1_blocks"),
     # ExperimentParams(FBSpatioTemporalCCAFilter, kfold_3_blocks, PARAMS_FB_SS_CCA_DEFAULT, "default_fb_ss_cca__3_blocks"),
     # ExperimentParams(FBSpatioTemporalCCAFilter, kfold_3_blocks, PARAMS_FB_FIR_CCA_DEFAULT, "default_fb_fir_cca__3_blocks"),
+)
+
+experiments_new_cca_multiclass: Tuple[ExperimentParams, ...] = (
+    ExperimentParams(StandardCCAMulticlass, k_fold_predict, PARAMS_CCA_SINGLE_COMPONENT, "default"),
+    ExperimentParams(SpatioTemporalCCAMulticlass, k_fold_predict, PARAMS_SPATIO_TEMPORAL_CCA_DEFAULT, "default_ss_cca"),
+    ExperimentParams(SpatioTemporalCCAMulticlass, k_fold_predict, PARAMS_FIR_CCA_DEFAULT, "default_fir_cca"),
+    ExperimentParams(FilterbankCCAMulticlass, k_fold_predict, PARAMS_FILTERBANK_CCA, "default"),
 )
 
 ### Grid search parameters

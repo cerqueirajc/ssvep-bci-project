@@ -217,6 +217,67 @@ class CCAModeFilterMixin(CCABase):
         return self
 
 
+class CCAModeFilterGlobalMixin(CCABase):
+
+    def _check_is_fitted(self) -> None:
+        hasattr(self, "cca")
+
+    def cca(self, eeg: NDArrayFloat) -> NDArrayFloat:
+        self._check_predict_input(eeg)
+        self._check_is_fitted()
+        
+        correlations = np.empty([rc.num_targets, self.num_components])
+        for target, freq in enumerate(rc.target_frequencies):
+            harmonic = self.harmonic_column(freq)
+            correlations[target, :] = self.cca_model.correlation(eeg, harmonic)
+
+        return correlations
+
+    def fit(self, eeg_tensor: NDArrayFloat):
+
+        self._check_fit_input(eeg_tensor)
+        eeg_tensor = self._filter_eeg_electrodes(eeg_tensor, self.electrodes_index)
+        eeg_tensor = self._filter_eeg_time(eeg_tensor, self.start_time_index, self.stop_time_index)
+
+        num_blocks = eeg_tensor.shape[0]
+        num_electrodes = eeg_tensor.shape[-1]
+
+        self.cca_models = {}
+        """
+        Our data is in the format eeg_tensor[blocks, targets, time, electrodes]
+        Usually we do everything by completely excluding the target from the equation. We partition everything by target,
+        as an individual analysis. However, this limits the ability to learn to distinguish between frequencies. We need
+        to learn how to deal with all frequencies simultaneously, not in the vacuum.
+
+        To do so, we will have a single CCA filter, instead of a filter for each target. We need to create a reference
+        signal that is coherent, and then reshap everything.
+
+        How to build harmonic reference:
+        we need to concatenate the references accordingly
+        Harmonic  =  harmonic[blocks, targets, time]
+        """
+
+        harmonic = np.zeros((rc.num_targets, self.get_time_window_size()), self.num_harmonics * 2)
+
+        for target, freq in enumerate(rc.target_frequencies):
+            harmonic[target, :, :] = self.harmonic_column(freq)
+
+        dim0 = num_blocks * rc.num_targets * self.get_time_window_size()
+        
+        eeg_concatenated = eeg_tensor.reshape(dim0, num_electrodes)
+        
+        harmonic_concatenated = (
+            harmonic[np.newaxis, :, :, :] # create new dummy dimension that will be expanded
+            .repeat(num_blocks, axis=0) # repeate the harmonic matrix for each one of the blocks present in eeg, shape=(num_blocks,time,num_harmonics)
+            .reshape(dim0, self.num_harmonics * 2) # concatenate harmonics from different blocks in a single lengthy one, shape=(num_blocks*time, num_harmonics)
+        )
+
+        self.cca_model = CCALearner(n_components=self.num_components, max_iter=CCA_MAX_ITER, scale=False)
+        self.cca_model.fit(eeg_concatenated, harmonic_concatenated)
+
+        return self
+
+
 class CCASingleComponentMixin:
     def predict_proba(self, eeg: NDArrayFloat) -> NDArrayFloat:
         return eeg[:, :, 0]

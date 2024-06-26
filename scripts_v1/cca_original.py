@@ -1,5 +1,5 @@
 import ssvepcca.pipelines as pipelines
-import ssvepcca.learners as learners
+import ssvepcca.deprecated_learners as deprecated_learners
 import ssvepcca.parameters as parameters
 
 import sys
@@ -7,7 +7,7 @@ import sys
     
 def main():
     
-    learner = learners.CCASingleComponent(
+    learner = deprecated_learners.CCASingleComponent(
         electrodes_name=parameters.electrode_list_fbcca,
         start_time_index=0,
         stop_time_index=1500,
