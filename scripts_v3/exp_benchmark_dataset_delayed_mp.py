@@ -46,7 +46,7 @@ if __name__ == "__main__":
     run_experiment_arglist = []
 
     print(f"Running correlation algos:")
-    for experiment_parameter in experiments_correlation + experiments_new_cca_multiclass:
+    for experiment_parameter in experiments_correlation:
         for time_window_params in time_window_parameters:
             run_experiment_arglist.append((
                 experiment_parameter,
