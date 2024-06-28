@@ -67,5 +67,5 @@ if __name__ == "__main__":
                 load_mat_data_array
             ))
     
-    with Pool(3) as p:
+    with Pool(8) as p:
         p.starmap(run_experiment, run_experiment_arglist)

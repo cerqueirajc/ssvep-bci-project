@@ -49,20 +49,20 @@ if __name__ == "__main__":
 
     run_experiment_arglist = []
 
-    # print(f"Running correlation algos:")
-    # for experiment_parameter in experiments_correlation:
-    #     for time_window_params in time_window_parameters:
-    #         run_experiment_arglist.append((
-    #             experiment_parameter,
-    #             time_window_params,
-    #             DATASET_ROOT_PATH,
-    #             OUTPUT_ROOT_FOLDER,
-    #             load_mat_data_array_new
-    #         ))
+    print(f"Running correlation algos:")
+    for experiment_parameter in experiments_correlation:
+        for time_window_params in time_window_parameters:
+            run_experiment_arglist.append((
+                experiment_parameter,
+                time_window_params,
+                DATASET_ROOT_PATH,
+                OUTPUT_ROOT_FOLDER,
+                load_mat_data_array_new
+            ))
 
     print(f"Running filter algos:")
-    # for experiment_parameter in experiments_filter + experiments_new_cca_multiclass:
-    for experiment_parameter in experiments_new_cca_multiclass:
+    for experiment_parameter in experiments_filter + experiments_new_cca_multiclass:
+    # for experiment_parameter in experiments_new_cca_multiclass:
         for time_window_params in time_window_parameters + time_window_parameters_full_data:
             run_experiment_arglist.append((
                 experiment_parameter,
@@ -72,5 +72,5 @@ if __name__ == "__main__":
                 load_mat_data_array_new
             ))
 
-    with Pool(3) as p:
+    with Pool(4) as p:
         p.starmap(run_experiment, run_experiment_arglist)
