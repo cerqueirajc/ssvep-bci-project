@@ -22,11 +22,10 @@ if __name__ == "__main__":
     input_data = load_mat_data_array(DATASET_PATH)
 
     start_time_index = 160
-    # stop_time_index = start_time_index + 125
-    stop_time_index = start_time_index + 250
+    stop_time_index = start_time_index + 125
     fit_start_time_idx = start_time_index
-    # fit_stop_time_idx = start_time_index + 250 * 5
     fit_stop_time_idx = stop_time_index
+    
     num_harmonics = 5
     electrode_list_fbcca = parameters.electrode_list_fbcca
 
@@ -182,11 +181,11 @@ if __name__ == "__main__":
     ]
 
 
-    # for name, algo in non_trainable_algos:
-    #     pt_start = process_time()      
-    #     res = test_fit_predict(input_data, algo)
-    #     pt_stop = process_time()
-    #     print(f"Name: {name}, accuracy: {res[2]}, process time: {pt_stop- pt_start}")
+    for name, algo in non_trainable_algos:
+        pt_start = process_time()      
+        res = test_fit_predict(input_data, algo)
+        pt_stop = process_time()
+        print(f"Name: {name}, accuracy: {res[2]}, process time: {pt_stop- pt_start}")
 
     for name, algo in trainable_algos:
         pt_start = process_time()      

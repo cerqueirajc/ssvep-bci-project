@@ -6,10 +6,11 @@ from dataclasses import dataclass, replace
 import scipy
 import numpy as np
 from numpy.typing import NDArray
-from sklearn.cross_decomposition import CCA
+# from sklearn.cross_decomposition import CCA
+from cca_zoo.linear import CCA as CCA_zoo
 
 from . import runtime_configuration as rc
-from .utils import get_harmonic_columns, electrodes_name_to_index, shift_time_dimension
+from .utils import get_harmonic_columns, shift_time_dimension
 
 """ TODO
 
@@ -34,22 +35,38 @@ CorrelationType = NDArray[np.float64]
 TransformerReturnType = Union[CorrelationType, EEGType]
 
 
-class CCALearner(CCA):
-    n_components: int
+# class CCALearner(CCA):
+#     n_components: int
 
-    def correlation(self, X: NDArray, Y: NDArray, n_components: Optional[int] = None) -> list[float]:
-        if n_components is None or n_components > self.n_components:
-            n_components = self.n_components
+#     def correlation(self, X: NDArray, Y: NDArray, n_components: Optional[int] = None) -> list[float]:
+#         if n_components is None or n_components > self.n_components:
+#             n_components = self.n_components
 
-        x_projection, y_projection = self.transform(X=X, y=Y)
+#         x_projection, y_projection = self.transform(X=X, y=Y)
 
-        return [
-            scipy.stats.pearsonr(x_projection[:,n], y_projection[:,n]).statistic
-            for n in range(0, n_components)
-        ]
+#         return [
+#             scipy.stats.pearsonr(x_projection[:,n], y_projection[:,n]).statistic
+#             for n in range(0, n_components)
+#         ]
 
-    def fit_correlation(self, X: NDArray, Y: NDArray, n_components: Optional[int] = None):
-        return self.fit(X, Y).correlation(X, Y, n_components)
+#     def fit_correlation(self, X: NDArray, Y: NDArray, n_components: Optional[int] = None):
+#         return self.fit(X, Y).correlation(X, Y, n_components)
+
+
+class CCALearner:
+    def __init__(self, n_components: int) -> None:
+        self._cca = CCA_zoo(latent_dimensions=n_components, pca=True)
+        self.n_components = n_components
+
+    def fit(self, X: NDArray, Y: NDArray) -> None:
+        self._cca.fit([X, Y])
+        return self
+
+    def correlation(self, X: NDArray, Y: NDArray) -> list[float]:
+        return self._cca.pairwise_correlations([X, Y])[0, 1, :].tolist()
+
+    def fit_correlation(self, X: NDArray, Y: NDArray):
+        return self.fit(X, Y).correlation(X, Y)
 
 
 class Transformer(ABC):
@@ -126,8 +143,6 @@ class DummyProjector(NonTrainableTransformer):
 
 class CCABase:
 
-    CCA_MAX_ITER = 1000
-
     def __init__(
             self,
             num_components: int,
@@ -149,7 +164,7 @@ class CCAModeCorrelation(CCABase, NonTrainableTransformer):
             harmonic = get_harmonic_columns(freq, eeg.start_time_idx, eeg.stop_time_idx, self.num_harmonics)
 
             for proj in range(num_projections):
-                cca_model = CCALearner(n_components=self.num_components, max_iter=self.CCA_MAX_ITER, scale=True)
+                cca_model = CCALearner(n_components=self.num_components)
                 correlations[target, proj, :] = cca_model.fit_correlation(eeg.data[proj, :, :], harmonic)
 
         return correlations
@@ -316,7 +331,7 @@ class CCAModeFilter(CCABase, Transformer):
             )
 
             for proj in range(num_projections):
-                cca_model = CCALearner(n_components=self.num_components, max_iter=self.CCA_MAX_ITER, scale=False)
+                cca_model = CCALearner(n_components=self.num_components)
                 cca_model.fit(eeg_blocks[proj, ...], harmonic_concatenated)
                 self.cca_models[target][proj] = cca_model
 
@@ -344,7 +359,7 @@ class CCAModeMulticlass(CCABase, Transformer):
                 eeg.stop_time_idx,
                 self.num_harmonics
             )
-            
+
             harmonic_reshaped = harmonic.reshape(-1, rc.num_targets * self.num_harmonics * 2)
 
             for proj in range(num_projections):
@@ -391,7 +406,7 @@ class CCAModeMulticlass(CCABase, Transformer):
         # print(harmonic_concatenated)
 
         for proj in range(num_projections):
-            cca_model = CCALearner(n_components=self.num_components, max_iter=self.CCA_MAX_ITER, scale=False)
+            cca_model = CCALearner(n_components=self.num_components)
             cca_model.fit(eeg_blocks[proj, ...], harmonic_concatenated)
             self.cca_models[proj] = cca_model
             # print(cca_model.n_iter_)
