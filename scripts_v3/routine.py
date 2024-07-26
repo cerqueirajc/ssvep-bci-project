@@ -60,15 +60,20 @@ def run_experiment(
     print(f"    -Executing experiment: {output_experiment_folder}")
 
     for subject in ssvepcca.runtime_configuration.subjects:
-        print(f"        -Subject: {subject}")
-
         data_path = f"{dataset_root_path}/{subject}.mat"
         output_path = f"{output_experiment_folder}/{subject}/"
 
+        if (
+            os.path.isfile(output_path + "predictions.npy") 
+            and os.path.isfile(output_path + "accuracy.npy")
+        ):
+            print(f"\t-Subject: {subject}|{str(experiment_params)}|{str(time_window_params)} - skipping, results already computed")
+            continue
+        
+        print(f"\t-Subject: {subject}|{str(experiment_params)}|{str(time_window_params)} - running")
         dataset = load_function(data_path)
-        predictions, predict_proba, accuracy = experiment_params.pipeline_function(dataset, ssvep_algorithm)
+        predictions, _, accuracy = experiment_params.pipeline_function(dataset, ssvep_algorithm)
 
         os.makedirs(output_path, exist_ok=True)
-        np.save(output_path + f"/predictions",      np.array(predictions),      allow_pickle=False)
-        np.save(output_path + f"/predict_proba",    np.array(predict_proba),    allow_pickle=False)
-        np.save(output_path + f"/accuracy",         np.array(accuracy),         allow_pickle=False)
+        np.save(output_path + "predictions",      np.array(predictions),      allow_pickle=False)
+        np.save(output_path + "accuracy",         np.array(accuracy),         allow_pickle=False)
