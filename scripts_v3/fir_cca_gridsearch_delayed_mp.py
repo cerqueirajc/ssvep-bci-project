@@ -14,8 +14,8 @@ if __name__ == "__main__":
     rc.load_from_name("tsinghua-bci-lab")
 
     SCRIPT_NAME = "fir_cca_gridsearch_delayed_mp"
-    DATASET_ROOT_PATH = "/media/cerqueirajc/windows_heavy_data/Ubuntu/masters/dataset/tsinghua_bci_lab"
-    OUTPUT_ROOT_FOLDER = "/media/cerqueirajc/windows_heavy_data/Ubuntu/masters/results_delayed_partial_2/tsinghua_bci_lab"
+    DATASET_ROOT_PATH = "/mnt/mystorage/tsinghua_bci_lab"
+    OUTPUT_ROOT_FOLDER = "/mnt/mystorage/results_delayed/tsinghua_bci_lab"
 
     stimulus_offset_seconds = 0.5
     visual_latency_seconds  = 0.14
