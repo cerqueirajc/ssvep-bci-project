@@ -16,6 +16,7 @@ setup(
         "scikit-learn",
         "pandas",
         "toolz",
-        "pyyaml"
+        "pyyaml",
+        "cca_zoo"
     ],
 )
