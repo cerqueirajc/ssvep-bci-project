@@ -112,7 +112,7 @@ def shift_time_dimension(arr: np.ndarray, num: int) -> np.ndarray:
 
 def cycled_sliding_window(list_or_iterable, n):
     "Collect data into overlapping fixed-length chunks or blocks."
-    # sliding_window('ABCDEFG', 4) --> ABCD BCDE CDEF DEFG
+    # cycled_sliding_window('ABCDEFG', 4) --> ABCD BCDE CDEF DEFG
     it = itertools.cycle(list_or_iterable)
     window = collections.deque(itertools.islice(it, n-1), maxlen=n)
     for x in it:

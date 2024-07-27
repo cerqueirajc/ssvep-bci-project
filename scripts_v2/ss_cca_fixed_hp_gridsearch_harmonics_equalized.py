@@ -1,5 +1,5 @@
 import ssvepcca.pipelines as pipelines
-import ssvepcca.learners as learners
+import ssvepcca.deprecated_learners as deprecated_learners
 import ssvepcca.parameters as parameters
 
 from scripts_new.configurations import (
@@ -15,7 +15,7 @@ RUN_PARAMS = [
     RunParams(
         f"SS-CCA_({window_gap},{SS_CCA_WINDOW_LENGTH})_fixed__[2s]",
         pipelines.k_fold_predict,
-        learners.CCASpatioTemporalFixed(
+        deprecated_learners.CCASpatioTemporalFixed(
             electrodes_name=parameters.electrode_list_fbcca,
             start_time_index=START_TIME_INDEX,
             stop_time_index=STOP_TIME_INDEX,

@@ -1,5 +1,5 @@
 import ssvepcca.pipelines as pipelines
-import ssvepcca.learners as learners
+import ssvepcca.deprecated_learners as deprecated_learners
 import ssvepcca.parameters as parameters
 
 from scripts_new.configurations import (
@@ -14,7 +14,7 @@ RUN_PARAMS = [
     RunParams(
         f"01_Default_CCA_{TIME_SUFFIX}",
         pipelines.test_fit_predict,
-        learners.CCASingleComponent(
+        deprecated_learners.CCASingleComponent(
             electrodes_name=parameters.electrode_list_fbcca,
             start_time_index=START_TIME_INDEX,
             stop_time_index=STOP_TIME_INDEX,
@@ -24,7 +24,7 @@ RUN_PARAMS = [
     RunParams(
         f"02_SS-CCA_(3,1)_{TIME_SUFFIX}",
         pipelines.test_fit_predict,
-        learners.CCASpatioTemporal(
+        deprecated_learners.CCASpatioTemporal(
             electrodes_name=parameters.electrode_list_fbcca,
             start_time_index=START_TIME_INDEX,
             stop_time_index=STOP_TIME_INDEX,
@@ -36,7 +36,7 @@ RUN_PARAMS = [
     RunParams(
         f"03_SS-CCA_(0,5)_{TIME_SUFFIX}",
         pipelines.test_fit_predict,
-        learners.CCASpatioTemporal(
+        deprecated_learners.CCASpatioTemporal(
             electrodes_name=parameters.electrode_list_fbcca,
             start_time_index=START_TIME_INDEX,
             stop_time_index=STOP_TIME_INDEX,
@@ -48,7 +48,7 @@ RUN_PARAMS = [
     RunParams(
         f"04_Filterbank_CCA_{TIME_SUFFIX}",
         pipelines.test_fit_predict,
-        learners.FilterbankCCA(
+        deprecated_learners.FilterbankCCA(
             electrodes_name=parameters.electrode_list_fbcca,
             start_time_index=START_TIME_INDEX,
             stop_time_index=STOP_TIME_INDEX,
@@ -61,7 +61,7 @@ RUN_PARAMS = [
     RunParams(
         f"05_Filterbank_SS-CCA_(3,1)_{TIME_SUFFIX}",
         pipelines.test_fit_predict,
-        learners.FBSpatioTemporalCCA(
+        deprecated_learners.FBSpatioTemporalCCA(
             electrodes_name=parameters.electrode_list_fbcca,
             start_time_index=START_TIME_INDEX,
             stop_time_index=STOP_TIME_INDEX,
@@ -77,7 +77,7 @@ RUN_PARAMS = [
     RunParams(
         f"07_Default_CCA_Fixed_{TIME_SUFFIX}",
         pipelines.k_fold_predict,
-        learners.CCAFixedCoefficients(
+        deprecated_learners.CCAFixedCoefficients(
             electrodes_name=parameters.electrode_list_fbcca,
             start_time_index=START_TIME_INDEX,
             stop_time_index=STOP_TIME_INDEX,
@@ -87,7 +87,7 @@ RUN_PARAMS = [
     RunParams(
         f"08_SS-CCA_(3,1)_Fixed_{TIME_SUFFIX}",
         pipelines.k_fold_predict,
-        learners.CCASpatioTemporalFixed(
+        deprecated_learners.CCASpatioTemporalFixed(
             electrodes_name=parameters.electrode_list_fbcca,
             start_time_index=START_TIME_INDEX,
             stop_time_index=STOP_TIME_INDEX,
@@ -99,7 +99,7 @@ RUN_PARAMS = [
     RunParams(
         f"09_SS-CCA_(0,5)_Fixed_{TIME_SUFFIX}",
         pipelines.k_fold_predict,
-        learners.CCASpatioTemporalFixed(
+        deprecated_learners.CCASpatioTemporalFixed(
             electrodes_name=parameters.electrode_list_fbcca,
             start_time_index=START_TIME_INDEX,
             stop_time_index=STOP_TIME_INDEX,
@@ -111,7 +111,7 @@ RUN_PARAMS = [
     RunParams(
         f"10_Filterbank_CCA_Fixed_{TIME_SUFFIX}",
         pipelines.k_fold_predict,
-        learners.FBCCAFixedCoefficients(
+        deprecated_learners.FBCCAFixedCoefficients(
             electrodes_name=parameters.electrode_list_fbcca,
             start_time_index=START_TIME_INDEX,
             stop_time_index=STOP_TIME_INDEX,
@@ -124,7 +124,7 @@ RUN_PARAMS = [
     RunParams(
         f"11_Filterbank_SS-CCA_(3,1)_Fixed_{TIME_SUFFIX}",
         pipelines.k_fold_predict,
-        learners.FBSpatioTemporalCCAFixed(
+        deprecated_learners.FBSpatioTemporalCCAFixed(
             electrodes_name=parameters.electrode_list_fbcca,
             start_time_index=START_TIME_INDEX,
             stop_time_index=STOP_TIME_INDEX,

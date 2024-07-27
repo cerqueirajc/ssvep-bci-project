@@ -6,10 +6,11 @@ from dataclasses import dataclass, replace
 import scipy
 import numpy as np
 from numpy.typing import NDArray
-from sklearn.cross_decomposition import CCA
+# from sklearn.cross_decomposition import CCA
+from cca_zoo.linear import CCA as CCA_zoo
 
 from . import runtime_configuration as rc
-from .utils import get_harmonic_columns, electrodes_name_to_index, shift_time_dimension
+from .utils import get_harmonic_columns, shift_time_dimension
 
 """ TODO
 
@@ -34,22 +35,38 @@ CorrelationType = NDArray[np.float64]
 TransformerReturnType = Union[CorrelationType, EEGType]
 
 
-class CCALearner(CCA):
-    n_components: int
+# class CCALearner(CCA):
+#     n_components: int
 
-    def correlation(self, X: NDArray, Y: NDArray, n_components: Optional[int] = None) -> list[float]:
-        if n_components is None or n_components > self.n_components:
-            n_components = self.n_components
+#     def correlation(self, X: NDArray, Y: NDArray, n_components: Optional[int] = None) -> list[float]:
+#         if n_components is None or n_components > self.n_components:
+#             n_components = self.n_components
 
-        x_projection, y_projection = self.transform(X=X, Y=Y)
+#         x_projection, y_projection = self.transform(X=X, y=Y)
 
-        return [
-            scipy.stats.pearsonr(x_projection[:,n], y_projection[:,n]).statistic
-            for n in range(0, n_components)
-        ]
+#         return [
+#             scipy.stats.pearsonr(x_projection[:,n], y_projection[:,n]).statistic
+#             for n in range(0, n_components)
+#         ]
 
-    def fit_correlation(self, X: NDArray, Y: NDArray, n_components: Optional[int] = None):
-        return self.fit(X, Y).correlation(X, Y, n_components)
+#     def fit_correlation(self, X: NDArray, Y: NDArray, n_components: Optional[int] = None):
+#         return self.fit(X, Y).correlation(X, Y, n_components)
+
+
+class CCALearner:
+    def __init__(self, n_components: int) -> None:
+        self._cca = CCA_zoo(latent_dimensions=n_components, pca=True)
+        self.n_components = n_components
+
+    def fit(self, X: NDArray, Y: NDArray) -> None:
+        self._cca.fit([X, Y])
+        return self
+
+    def correlation(self, X: NDArray, Y: NDArray) -> list[float]:
+        return self._cca.pairwise_correlations([X, Y])[0, 1, :].tolist()
+
+    def fit_correlation(self, X: NDArray, Y: NDArray):
+        return self.fit(X, Y).correlation(X, Y)
 
 
 class Transformer(ABC):
@@ -126,8 +143,6 @@ class DummyProjector(NonTrainableTransformer):
 
 class CCABase:
 
-    CCA_MAX_ITER = 1000
-
     def __init__(
             self,
             num_components: int,
@@ -141,7 +156,7 @@ class CCABase:
 class CCAModeCorrelation(CCABase, NonTrainableTransformer):
 
     def __call__(self, eeg: EEGType) -> CorrelationType:
-        
+
         num_projections = eeg.data.shape[0]
         correlations = np.empty([rc.num_targets, num_projections, self.num_components])
 
@@ -149,7 +164,7 @@ class CCAModeCorrelation(CCABase, NonTrainableTransformer):
             harmonic = get_harmonic_columns(freq, eeg.start_time_idx, eeg.stop_time_idx, self.num_harmonics)
 
             for proj in range(num_projections):
-                cca_model = CCALearner(n_components=self.num_components, max_iter=self.CCA_MAX_ITER, scale=True)
+                cca_model = CCALearner(n_components=self.num_components)
                 correlations[target, proj, :] = cca_model.fit_correlation(eeg.data[proj, :, :], harmonic)
 
         return correlations
@@ -316,9 +331,85 @@ class CCAModeFilter(CCABase, Transformer):
             )
 
             for proj in range(num_projections):
-                cca_model = CCALearner(n_components=self.num_components, max_iter=self.CCA_MAX_ITER, scale=False)
+                cca_model = CCALearner(n_components=self.num_components)
                 cca_model.fit(eeg_blocks[proj, ...], harmonic_concatenated)
                 self.cca_models[target][proj] = cca_model
+
+        """
+        If we want to fit more estimators after the CCAModeFilter, we need to change the return time here. Returning
+        what we have here now `eeg_tensor.data[0,0,...]` is not enough. Ideally we should return cross-val-predictions,
+        but the bare minimum would be to return a {num_blocks, num_targets, ...} tensor.
+        """
+        return self.__call__(replace(eeg_tensor, data=eeg_tensor.data[0,0,...]))
+
+
+class CCAModeMulticlass(CCABase, Transformer):
+
+    def __call__(self, eeg: EEGType) -> CorrelationType:
+
+        num_projections = eeg.data.shape[0]
+        correlations = np.empty([rc.num_targets, num_projections, self.num_components])
+        num_samples = eeg.stop_time_idx - eeg.start_time_idx
+
+        for target, freq in enumerate(rc.target_frequencies):
+            harmonic = np.zeros([num_samples, rc.num_targets, self.num_harmonics * 2])
+            harmonic[:, target, :] = get_harmonic_columns(
+                freq,
+                eeg.start_time_idx,
+                eeg.stop_time_idx,
+                self.num_harmonics
+            )
+
+            harmonic_reshaped = harmonic.reshape(-1, rc.num_targets * self.num_harmonics * 2)
+
+            for proj in range(num_projections):
+                correlations[target, proj, :] = self.cca_models[proj].correlation(eeg.data[proj, ...], harmonic_reshaped)
+
+        return correlations
+
+
+    def fit(self, eeg_tensor: EEGType):
+        """Expects eeg_tensor with num_dim=5 and dims=(num_blocks, num_targets, num_projections, num_samples, num_electrodes)"""
+
+        num_blocks = eeg_tensor.data.shape[0]
+        num_projections = eeg_tensor.data.shape[2]
+        num_electrodes = eeg_tensor.data.shape[-1]
+        num_samples = eeg_tensor.stop_time_idx - eeg_tensor.start_time_idx
+
+        self.cca_models = {}
+
+        harmonic = np.zeros([rc.num_targets, num_samples, rc.num_targets, self.num_harmonics * 2])
+        for target, freq in enumerate(rc.target_frequencies):
+            harmonic[target, :, target, :] = get_harmonic_columns(
+                freq,
+                eeg_tensor.start_time_idx,
+                eeg_tensor.stop_time_idx,
+                self.num_harmonics
+            )
+
+        harmonic_concatenated = (
+            # create new dummy dimension that will be expanded
+            harmonic[np.newaxis, :, :, :]
+            # repeate the harmonic matrix for each one of the blocks present in eeg, shape=(num_blocks,time,num_harmonics)
+            .repeat(num_blocks, axis=0)
+            # concatenate harmonics from different blocks in a single lengthy one, shape=(num_blocks*time, num_harmonics)
+            .reshape(-1, rc.num_targets * self.num_harmonics * 2)
+        )
+
+        eeg_blocks = (
+            eeg_tensor.data                     # num_blocks, num_targets, num_projections, num_samples, num_electrodes
+            .transpose([2, 0, 1, 3, 4])         # num_projections, num_blocks, num_targets, num_samples, num_electrodes
+            .reshape(num_projections, -1, num_electrodes)  # num_projections, num_blocks*num_targets*num_samples, num_electrodes
+        )
+        # print(harmonic_concatenated.shape)
+        # print(eeg_blocks.shape)
+        # print(harmonic_concatenated)
+
+        for proj in range(num_projections):
+            cca_model = CCALearner(n_components=self.num_components)
+            cca_model.fit(eeg_blocks[proj, ...], harmonic_concatenated)
+            self.cca_models[proj] = cca_model
+            # print(cca_model.n_iter_)
 
         """
         If we want to fit more estimators after the CCAModeFilter, we need to change the return time here. Returning

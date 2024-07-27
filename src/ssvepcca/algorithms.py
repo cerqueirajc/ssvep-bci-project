@@ -16,7 +16,8 @@ from .transformers import (
     DummyProjector,
     FilterbankProjector,
     Squeeze,
-    FilterBankPredictProba
+    FilterBankPredictProba,
+    CCAModeMulticlass
 )
 
 
@@ -244,7 +245,7 @@ class StandardCCAFilter(StandardCCA):
         fit_stop_time_idx=None,
         num_harmonics=5,
     ) -> None:
-        
+
         self.fit_start_time_idx = fit_start_time_idx
         self.fit_stop_time_idx = fit_stop_time_idx
         super().__init__(
@@ -343,7 +344,7 @@ class SpatioTemporalCCAFilter(SpatioTemporalCCA):
         window_gap=0,
         window_length=5
     ) -> None:
-        
+
         if fit_start_time_idx is not None and window_length + window_gap > fit_start_time_idx:
             raise ValueError("Value of fit_start_time_idx must be bigger or equal to window_length + window_gap")
 
@@ -452,6 +453,157 @@ class FBSpatioTemporalCCAFilter(SSVEPAlgorithm):
                 fb_upper_bound_freq=self.fb_upper_bound_freq,
             ),
             CCAModeFilter(
+                num_components=self.num_components,
+                num_harmonics=self.num_harmonics
+            ),
+            Squeeze(),
+            FilterBankPredictProba(
+                fb_num_subband=self.fb_num_subband,
+                fb_weight__a=self.fb_weight__a,
+                fb_weight__b=self.fb_weight__b
+            )
+        )
+
+
+class StandardCCAMulticlass(StandardCCA):
+
+    def __init__(
+        self,
+        electrodes_name=[],
+        start_time_idx=0,
+        stop_time_idx=1500,
+        fit_start_time_idx=None,
+        fit_stop_time_idx=None,
+        num_harmonics=5,
+    ) -> None:
+
+        self.fit_start_time_idx = fit_start_time_idx
+        self.fit_stop_time_idx = fit_stop_time_idx
+        super().__init__(
+            electrodes_name,
+            start_time_idx,
+            stop_time_idx,
+            num_harmonics
+        )
+
+    def initialize_pipeline(self) -> None:
+        self.pipeline = (
+            ElectrodesFilter(self.electrodes_index),
+            TimeFilter(
+                start_time_idx=self.start_time_idx,
+                stop_time_idx=self.stop_time_idx,
+                fit_start_time_idx=self.fit_start_time_idx,
+                fit_stop_time_idx=self.fit_stop_time_idx,
+            ),
+            DummyProjector(),
+            CCAModeMulticlass(
+                num_components=self.num_components,
+                num_harmonics=self.num_harmonics
+            ),
+            Squeeze()
+        )
+
+
+class SpatioTemporalCCAMulticlass(SpatioTemporalCCA):
+
+    def __init__(
+        self,
+        electrodes_name=[],
+        start_time_idx=0,
+        stop_time_idx=1500,
+        fit_start_time_idx=None,
+        fit_stop_time_idx=None,
+        num_harmonics=5,
+        window_gap=0,
+        window_length=5
+    ) -> None:
+
+        if fit_start_time_idx is not None and window_length + window_gap > fit_start_time_idx:
+            raise ValueError("Value of fit_start_time_idx must be bigger or equal to window_length + window_gap")
+
+        self.fit_start_time_idx = fit_start_time_idx
+        self.fit_stop_time_idx = fit_stop_time_idx
+        super().__init__(
+            electrodes_name=electrodes_name,
+            start_time_idx=start_time_idx,
+            stop_time_idx=stop_time_idx,
+            num_harmonics=num_harmonics,
+            window_gap=window_gap,
+            window_length=window_length
+        )
+
+
+    def initialize_pipeline(self):
+        self.pipeline = (
+            ElectrodesFilter(self.electrodes_index),
+            TimeFilter(
+                start_time_idx=None,
+                stop_time_idx=self.stop_time_idx,
+                fit_start_time_idx=None,
+                fit_stop_time_idx=self.fit_stop_time_idx
+            ),
+            SpatioTemporalBank(window_gap=self.window_gap, window_length = self.window_length),
+            TimeFilter(
+                start_time_idx=self.start_time_idx,
+                stop_time_idx=None,
+                fit_start_time_idx=self.fit_start_time_idx,
+                fit_stop_time_idx=None,
+            ),
+            DummyProjector(),
+            CCAModeMulticlass(
+                num_components=self.num_components,
+                num_harmonics=self.num_harmonics,
+            ),
+            Squeeze()
+        )
+
+
+class FilterbankCCAMulticlass(FilterbankCCA):
+
+    def __init__(
+        self,
+        electrodes_name=[],
+        start_time_idx=0,
+        stop_time_idx=1500,
+        fit_start_time_idx=None,
+        fit_stop_time_idx=None,
+        num_harmonics=5,
+        fb_num_subband=3,
+        fb_fundamental_freq=8,
+        fb_upper_bound_freq=88,
+        fb_weight__a=1.25,
+        fb_weight__b=0.25,
+    ) -> None:
+
+        self.fit_start_time_idx = fit_start_time_idx
+        self.fit_stop_time_idx = fit_stop_time_idx
+        super().__init__(
+            electrodes_name=electrodes_name,
+            start_time_idx=start_time_idx,
+            stop_time_idx=stop_time_idx,
+            num_harmonics=num_harmonics,
+            fb_num_subband=fb_num_subband,
+            fb_fundamental_freq=fb_fundamental_freq,
+            fb_upper_bound_freq=fb_upper_bound_freq,
+            fb_weight__a=fb_weight__a,
+            fb_weight__b=fb_weight__b,
+        )
+
+    def initialize_pipeline(self):
+        self.pipeline = (
+            ElectrodesFilter(self.electrodes_index),
+            TimeFilter(
+                start_time_idx=self.start_time_idx,
+                stop_time_idx=self.stop_time_idx,
+                fit_start_time_idx=self.fit_start_time_idx,
+                fit_stop_time_idx=self.fit_stop_time_idx,
+            ),
+            FilterbankProjector(
+                fb_num_subband=self.fb_num_subband,
+                fb_fundamental_freq=self.fb_fundamental_freq,
+                fb_upper_bound_freq=self.fb_upper_bound_freq,
+            ),
+            CCAModeMulticlass(
                 num_components=self.num_components,
                 num_harmonics=self.num_harmonics
             ),
