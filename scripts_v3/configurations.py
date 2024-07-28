@@ -95,20 +95,20 @@ experiments_filter: Tuple[ExperimentParams, ...] = (
 
 kfold_3_blocks = k_fold_predict_alt(train_num_blocks=3)
 experiments_filter_short_training_3: Tuple[ExperimentParams, ...] = (
-    # ExperimentParams(StandardCCAFilter, kfold_3_blocks, PARAMS_CCA_SINGLE_COMPONENT, "default__3_blocks"),
-    # ExperimentParams(SpatioTemporalCCAFilter, kfold_3_blocks, PARAMS_SPATIO_TEMPORAL_CCA_DEFAULT, "default_ss_cca__3_blocks"),
-    # ExperimentParams(SpatioTemporalCCAFilter, kfold_3_blocks, PARAMS_FIR_CCA_DEFAULT, "default_fir_cca__3_blocks"),
-    # ExperimentParams(FilterbankCCAFilter, kfold_3_blocks, PARAMS_FILTERBANK_CCA, "default__3_blocks"),
+    ExperimentParams(StandardCCAFilter, kfold_3_blocks, PARAMS_CCA_SINGLE_COMPONENT, "default__3_blocks"),
+    ExperimentParams(SpatioTemporalCCAFilter, kfold_3_blocks, PARAMS_SPATIO_TEMPORAL_CCA_DEFAULT, "default_ss_cca__3_blocks"),
+    ExperimentParams(SpatioTemporalCCAFilter, kfold_3_blocks, PARAMS_FIR_CCA_DEFAULT, "default_fir_cca__3_blocks"),
+    ExperimentParams(FilterbankCCAFilter, kfold_3_blocks, PARAMS_FILTERBANK_CCA, "default__3_blocks"),
     # ExperimentParams(FBSpatioTemporalCCAFilter, kfold_3_blocks, PARAMS_FB_SS_CCA_DEFAULT, "default_fb_ss_cca__3_blocks"),
     # ExperimentParams(FBSpatioTemporalCCAFilter, kfold_3_blocks, PARAMS_FB_FIR_CCA_DEFAULT, "default_fb_fir_cca__3_blocks"),
 )
 
 kfold_1_blocks = k_fold_predict_alt(train_num_blocks=1)
 experiments_filter_short_training_1: Tuple[ExperimentParams, ...] = (
-    # ExperimentParams(StandardCCAFilter, kfold_1_blocks, PARAMS_CCA_SINGLE_COMPONENT, "default__1_blocks"),
-    # ExperimentParams(SpatioTemporalCCAFilter, kfold_1_blocks, PARAMS_SPATIO_TEMPORAL_CCA_DEFAULT, "default_ss_cca__1_blocks"),
-    # ExperimentParams(SpatioTemporalCCAFilter, kfold_1_blocks, PARAMS_FIR_CCA_DEFAULT, "default_fir_cca__1_blocks"),
-    # ExperimentParams(FilterbankCCAFilter, kfold_1_blocks, PARAMS_FILTERBANK_CCA, "default__1_blocks"),
+    ExperimentParams(StandardCCAFilter, kfold_1_blocks, PARAMS_CCA_SINGLE_COMPONENT, "default__1_blocks"),
+    ExperimentParams(SpatioTemporalCCAFilter, kfold_1_blocks, PARAMS_SPATIO_TEMPORAL_CCA_DEFAULT, "default_ss_cca__1_blocks"),
+    ExperimentParams(SpatioTemporalCCAFilter, kfold_1_blocks, PARAMS_FIR_CCA_DEFAULT, "default_fir_cca__1_blocks"),
+    ExperimentParams(FilterbankCCAFilter, kfold_1_blocks, PARAMS_FILTERBANK_CCA, "default__1_blocks"),
     # ExperimentParams(FBSpatioTemporalCCAFilter, kfold_3_blocks, PARAMS_FB_SS_CCA_DEFAULT, "default_fb_ss_cca__3_blocks"),
     # ExperimentParams(FBSpatioTemporalCCAFilter, kfold_3_blocks, PARAMS_FB_FIR_CCA_DEFAULT, "default_fb_fir_cca__3_blocks"),
 )
