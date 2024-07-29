@@ -51,5 +51,5 @@ if __name__ == "__main__":
         for exp in run_experiment_arglist:
             f.write(str(exp[0]) + "/" + str(exp[1]) + '\n')
 
-    with Pool(7) as p:
+    with Pool(8) as p:
         p.starmap(run_experiment, run_experiment_arglist)
