@@ -23,7 +23,7 @@ if __name__ == "__main__":
     for window_size_seconds in [0.8, 2.0]:
         stimulus_offset_seconds = 0.5
         visual_latency_seconds  = 0.14
-        window_size_seconds = 0.8
+        # window_size_seconds = 0.8
 
         initial_time_value = (stimulus_offset_seconds + visual_latency_seconds) * rc.sample_frequency
         time_window_end_value = initial_time_value + window_size_seconds * rc.sample_frequency
@@ -51,5 +51,5 @@ if __name__ == "__main__":
         for exp in run_experiment_arglist:
             f.write(str(exp[0]) + "/" + str(exp[1]) + '\n')
 
-    with Pool(8) as p:
+    with Pool(7) as p:
         p.starmap(run_experiment, run_experiment_arglist)
