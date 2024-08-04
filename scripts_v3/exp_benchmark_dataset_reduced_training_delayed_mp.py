@@ -14,13 +14,14 @@ if __name__ == "__main__":
     rc.load_from_name("tsinghua-bci-lab")
 
     SCRIPT_NAME = "exp_benchmark_dataset_reduced_training_delayed_mp"
-    DATASET_ROOT_PATH = "/mnt/mystorage/tsinghua_bci_lab"
-    OUTPUT_ROOT_FOLDER = "/mnt/mystorage/results_less_blocks/tsinghua_bci_lab"
-    # DATASET_ROOT_PATH = "/media/cerqueirajc/windows_heavy_data/Ubuntu/masters/dataset/tsinghua_bci_lab"
-    # OUTPUT_ROOT_FOLDER = "/media/cerqueirajc/windows_heavy_data/Ubuntu/masters/results_2024_07_28_paper/tsinghua_bci_lab"
+    # DATASET_ROOT_PATH = "/mnt/mystorage/tsinghua_bci_lab"
+    # OUTPUT_ROOT_FOLDER = "/mnt/mystorage/results_less_blocks/tsinghua_bci_lab"
+    DATASET_ROOT_PATH = "/media/cerqueirajc/windows_heavy_data/Ubuntu/masters/dataset/tsinghua_bci_lab"
+    OUTPUT_ROOT_FOLDER = "/media/cerqueirajc/windows_heavy_data/Ubuntu/masters/results_2024_07_28_paper/tsinghua_bci_lab"
 
     run_experiment_arglist = []
-    for window_size_seconds in [0.8, 2.0]:
+    # for window_size_seconds in [0.2, 0.4, 0.8, 1.2, 1.6, 2.0]:
+    for window_size_seconds in [0.2, 0.4, 0.6, 0.8, 1.0, 1.2, 1.4, 1.6, 1.8, 2.0]:
         stimulus_offset_seconds = 0.5
         visual_latency_seconds  = 0.14
         # window_size_seconds = 0.8

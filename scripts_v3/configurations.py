@@ -79,7 +79,7 @@ experiments_correlation: Tuple[ExperimentParams, ...] = (
     ExperimentParams(SpatioTemporalCCA, test_fit_predict, PARAMS_SPATIO_TEMPORAL_CCA_DEFAULT, "default_ss_cca"),
     ExperimentParams(SpatioTemporalCCA, test_fit_predict, PARAMS_FIR_CCA_DEFAULT, "default_fir_cca"),
     ExperimentParams(FilterbankCCA, test_fit_predict, PARAMS_FILTERBANK_CCA, "default"),
-    # ExperimentParams(FBSpatioTemporalCCA, test_fit_predict, PARAMS_FB_SS_CCA_DEFAULT, "default_fb_ss_cca"),
+    ExperimentParams(FBSpatioTemporalCCA, test_fit_predict, PARAMS_FB_SS_CCA_DEFAULT, "default_fb_ss_cca"),
     # ExperimentParams(FBSpatioTemporalCCA, test_fit_predict, PARAMS_FB_FIR_CCA_DEFAULT, "default_fb_fir_cca"),
 )
 
@@ -89,7 +89,7 @@ experiments_filter: Tuple[ExperimentParams, ...] = (
     ExperimentParams(SpatioTemporalCCAFilter, k_fold_predict, PARAMS_SPATIO_TEMPORAL_CCA_DEFAULT, "default_ss_cca"),
     ExperimentParams(SpatioTemporalCCAFilter, k_fold_predict, PARAMS_FIR_CCA_DEFAULT, "default_fir_cca"),
     ExperimentParams(FilterbankCCAFilter, k_fold_predict, PARAMS_FILTERBANK_CCA, "default"),
-    # ExperimentParams(FBSpatioTemporalCCAFilter, k_fold_predict, PARAMS_FB_SS_CCA_DEFAULT, "default_fb_ss_cca"),
+    ExperimentParams(FBSpatioTemporalCCAFilter, k_fold_predict, PARAMS_FB_SS_CCA_DEFAULT, "default_fb_ss_cca"),
     # ExperimentParams(FBSpatioTemporalCCAFilter, k_fold_predict, PARAMS_FB_FIR_CCA_DEFAULT, "default_fb_fir_cca"),
 )
 

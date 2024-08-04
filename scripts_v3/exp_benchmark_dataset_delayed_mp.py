@@ -62,6 +62,7 @@ if __name__ == "__main__":
 
     print(f"Enqueue filter algos:")
     for experiment_parameter in experiments_filter + experiments_new_cca_multiclass:
+    # for experiment_parameter in experiments_filter:
         for time_window_params in time_window_parameters + time_window_parameters_full_data:
             run_experiment_arglist.append((
                 experiment_parameter,
